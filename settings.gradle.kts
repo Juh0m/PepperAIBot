@@ -16,6 +16,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven {
+            url = uri("https://qisdk.softbankrobotics.com/sdk-beta/maven")
+        }
     }
 }
 
