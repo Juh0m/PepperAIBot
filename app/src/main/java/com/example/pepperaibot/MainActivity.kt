@@ -242,8 +242,6 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                     while (isRecording) {
                         val read = audioRecord?.read(buffer, 0, buffer.size) ?: -1
                         Log.d(TAG, "Audio read size: $read")
-                        val rms = buffer.rms()
-                        Log.d(TAG, "Audio buffer RMS volume: $rms")
                         if (read > 0) {
                             // Convert shorts to bytes for recognizer
                             val byteBuffer = ByteBuffer.allocate(read * 2) // 2 bytes per short
@@ -387,10 +385,5 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 Toast.makeText(this, "Microphone permission is required", Toast.LENGTH_SHORT).show()
             }
         }
-    }
-    fun ShortArray.rms(): Double {
-        var sum = 0.0
-        for (s in this) sum += s * s
-        return Math.sqrt(sum / this.size)
     }
 }
