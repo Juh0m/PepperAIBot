@@ -16,15 +16,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven {
-            url = uri("https://qisdk.softbankrobotics.com/sdk-beta/maven")
-        }
-        maven {
-            url = uri("https://jitpack.io")
-        }
     }
 }
 
-rootProject.name = "PepperAIBot"
+rootProject.name = "PepperUI"
 include(":app")
  
