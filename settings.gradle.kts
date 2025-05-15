@@ -19,6 +19,9 @@ dependencyResolutionManagement {
         maven {
             url = uri("https://qisdk.softbankrobotics.com/sdk-beta/maven")
         }
+        maven {
+            url = uri("https://jitpack.io")
+        }
     }
 }
 
