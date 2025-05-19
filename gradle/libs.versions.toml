@@ -1,34 +1,48 @@
 [versions]
-kotlin = "1.9.10"
-compose = "2023.10.01"
+agp = "8.10.0"
+kotlin = "2.0.21"
+compose = "2025.05.00"
 coroutines = "1.7.3"
 compileSdk = "35"
 material3 = "1.1.2"
+coreKtx = "1.16.0"
+junit = "4.13.2"
+junitVersion = "1.2.1"
+espressoCore = "3.6.1"
+lifecycleRuntimeKtx = "2.9.0"
+activityCompose = "1.10.1"
+composeBom = "2025.05.00"
+qisdk = "1.7.5"
+vosk = "0.3.38"
+constraintlayout = "2.2.1"
+appcompat = "1.7.0"
+material = "1.12.0"
 
 [libraries]
-androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version = "1.12.0" }
-androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version = "2.6.2" }
-androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version = "1.8.2" }
-androidx-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "compose" }
-androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref = "compose" }
-androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview", version.ref = "compose" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui"}
+androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics"}
 androidx-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
-androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version = "2.1.4" }
-androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version = "1.6.1" }
-material = { group = "com.google.android.material", name = "material", version = "1.10.0" }
-
-vosk = { group = "org.vosk", name = "vosk-android", version = "0.3.32" }
-qisdk = { group = "com.aldebaran", name = "qi-sdk", version = "3.3.0" }
+androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+qisdk = { module = "com.aldebaran:qisdk", version.ref = "qisdk" }
+vosk = { module = "com.alphacephei:vosk-android", version = "0.3.47" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 
-junit = { group = "junit", name = "junit", version = "4.13.2" }
-androidx-junit = { group = "androidx.test.ext", name = "junit", version = "1.1.5" }
-androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version = "3.5.1" }
-androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "compose" }
-androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", version.ref = "compose" }
-androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "compose" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 
 [plugins]
-android-application = { id = "com.android.application", version = "8.2.0" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version = "1.9.10" }
-kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version = "1.5.3" }
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

@@ -7,14 +7,34 @@ class MainViewModel : ViewModel() {
     var isListening = mutableStateOf(false)
     var userInput = mutableStateOf("")
     var aiResponse = mutableStateOf("")
+    var listeningText = mutableStateOf("")
+
+    var onStartListening: (() -> Unit)? = null
+    var onStopListening: (() -> Unit)? = null
 
     fun toggleListening() {
-        isListening.value = !isListening.value
-
-        // Placeholder logic for demo:
         if (isListening.value) {
-            userInput.value = "You: Hello, Pepper!"
-            aiResponse.value = "Pepper: Hello! How can I assist you today?"
+            onStopListening?.invoke()
+        } else {
+            onStartListening?.invoke()
         }
+        isListening.value = !isListening.value
+    }
+
+    fun updateUserText(text: String, isFinal: Boolean) {
+        if (isFinal) {
+            userInput.value = "You: $text"
+            updateAIResponse("<insert pepper response here>")
+        } else {
+            userInput.value = "Listening: $text"
+        }
+    }
+
+    fun updateAIResponse(response: String) {
+        aiResponse.value = "Pepper: $response"
+    }
+
+    fun updateListeningText(text: String) {
+        listeningText.value = text
     }
 }

@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.pepperui"
+    namespace = "com.example.pepperaibot"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.pepperui"
+        applicationId = "com.example.pepperaibot"
         minSdk = 23
         targetSdk = 35
         versionCode = 1
@@ -42,32 +42,22 @@ android {
 }
 
 dependencies {
-    // Compose core
     implementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation("androidx.compose.material:material-icons-extended")
-
-    // Vosk speech recognition
+    implementation(libs.androidx.material.icons.extended)
     implementation(libs.vosk)
-
-    // QiSDK (Pepper SDK)
     implementation(libs.qisdk)
-
-    // Kotlin and AndroidX support
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.kotlinx.coroutines.android)
-
-    // For optional compatibility / legacy UI support
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
-
-    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
