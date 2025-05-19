@@ -1,42 +1,47 @@
 package com.example.pepperaibot
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
-import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONException
-import org.json.JSONObject
-import org.vosk.LibVosk
-import org.vosk.LogLevel
-import org.vosk.Model
-import org.vosk.Recognizer
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.InputStream
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.util.zip.ZipInputStream
-import com.example.pepperaibot.ui.theme.PepperAIBotTheme
 import com.aldebaran.qi.sdk.QiContext
 import com.aldebaran.qi.sdk.QiSDK
 import com.aldebaran.qi.sdk.RobotLifecycleCallbacks
+import com.example.pepperaibot.ui.theme.PepperAIBotTheme
+import kotlinx.coroutines.*
+import org.json.JSONObject
+import org.vosk.*
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.util.zip.ZipInputStream
 
 class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
@@ -44,11 +49,8 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     private val SAMPLE_RATE = 16000
     private val BUFFER_SIZE_ELEMENTS = 65536
     private val RECORD_AUDIO_REQUEST_CODE = 101
-    private val BUFFER_SIZE_BYTES = BUFFER_SIZE_ELEMENTS * 2 // 2 bytes per short
 
     private val scope = CoroutineScope(Dispatchers.Main)
-    private lateinit var resultTextView: TextView
-    private lateinit var recordButton: Button
     private lateinit var model: Model
     private var recognizer: Recognizer? = null
     private var audioRecord: AudioRecord? = null
@@ -56,333 +58,242 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     private var isRecording = false
     private var isModelInitialized = false
 
-    // Request audio permissions
+    private val viewModel by viewModels<MainViewModel>()
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val allGranted = permissions.entries.all { it.value }
-        if (allGranted) {
+        if (permissions.entries.all { it.value }) {
             initVosk()
         } else {
-            Toast.makeText(this, "Permissions required for speech recognition", Toast.LENGTH_LONG)
-                .show()
+            Toast.makeText(this, "Permissions required for speech recognition", Toast.LENGTH_LONG).show()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
-        resultTextView = findViewById(R.id.resultTextView)
-        recordButton = findViewById(R.id.recordButton)
-
-        recordButton.setOnClickListener {
-            if (isRecording) {
-                stopRecording()
-            } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
+        viewModel.onStartListening = {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                startRecording()
+            } else {
                 ActivityCompat.requestPermissions(
                     this,
                     arrayOf(Manifest.permission.RECORD_AUDIO),
                     RECORD_AUDIO_REQUEST_CODE
                 )
-            } else {
-                // Permission already granted
-                startRecording() // or any function that needs the mic
             }
         }
 
-        // Initialize QiSDK if needed for Pepper robot integration
-        try {
-            QiSDK.register(this, this)
-        } catch (e: Exception) {
-            Log.w(TAG, "QiSDK registration failed. Is this running on a Pepper robot?", e)
-            // Continue anyway as the app can work without Pepper
+        viewModel.onStopListening = { stopRecording() }
+
+        setContent {
+            PepperAIBotTheme {
+                MainScreen(viewModel = viewModel) {
+                    startActivity(Intent(this, SettingsActivity::class.java))
+                }
+            }
         }
 
+        try {
+            QiSDK.register(this, this)
+        } catch (e: SecurityException) {
+            Log.e("QiSDK", "Failed to register QiSDK due to SecurityException", e)
+            // Optionally handle gracefully or alert user
+        }
         checkPermissions()
     }
 
     private fun checkPermissions() {
-        val audioPermission =
-            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-        val storagePermission = if (android.os.Build.VERSION.SDK_INT >= 33) {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO)
-        } else {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+        val permissions = mutableListOf<String>()
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.RECORD_AUDIO)
         }
-
-        val permissionsToRequest = mutableListOf<String>()
-
-        if (audioPermission != PackageManager.PERMISSION_GRANTED) {
-            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-        }
-
-        if (storagePermission != PackageManager.PERMISSION_GRANTED) {
-            if (android.os.Build.VERSION.SDK_INT >= 33) {
-                permissionsToRequest.add(Manifest.permission.READ_MEDIA_AUDIO)
-            } else {
-                permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
-        }
-
-        if (permissionsToRequest.isNotEmpty()) {
-            requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
+        if (permissions.isNotEmpty()) {
+            requestPermissionLauncher.launch(permissions.toTypedArray())
         } else {
             initVosk()
         }
     }
 
     private fun initVosk() {
-        // Initialize Vosk
         LibVosk.setLogLevel(LogLevel.INFO)
-
-        // Load model in a background thread
         scope.launch {
             try {
-                resultTextView.text = "Loading model..."
+                viewModel.updateListeningText("Loading model...")
                 withContext(Dispatchers.IO) {
-                    // Get the model from assets
                     val modelDir = File(filesDir, "model")
-                    Log.d(TAG, "Model directory: ${modelDir.absolutePath}")
-                    Log.d(TAG, "Contents: ${modelDir.list()?.joinToString()}")
                     if (!modelDir.exists()) {
                         modelDir.mkdirs()
-                        Log.d(TAG, "Model directory: ${modelDir.absolutePath}")
                         extractAssets("model-en-us.zip", modelDir)
                     }
-
                     model = Model(modelDir.absolutePath)
                     isModelInitialized = true
                 }
-                recordButton.isEnabled = true
-                resultTextView.text = "Ready for speech recognition"
+                viewModel.updateListeningText("Ready for speech recognition")
             } catch (e: IOException) {
-                Log.e(TAG, "Failed to initialize Vosk model", e)
-                resultTextView.text = "Failed to initialize Vosk model: ${e.message}"
+                Log.e(TAG, "Model init error", e)
+                viewModel.updateListeningText("Model error: ${e.message}")
             }
         }
     }
 
     private fun extractAssets(zipName: String, targetDir: File) {
-        try {
-            assets.open(zipName).use { inputStream ->
-                ZipInputStream(inputStream).use { zipInputStream ->
-                    var zipEntry = zipInputStream.nextEntry
-                    while (zipEntry != null) {
-                        val newFile = File(targetDir, zipEntry.name)
-                        if (zipEntry.isDirectory) {
-                            newFile.mkdirs()
-                        } else {
-                            File(newFile.parent!!).mkdirs()
-                            extractFile(zipInputStream, newFile)
+        assets.open(zipName).use { inputStream ->
+            ZipInputStream(inputStream).use { zipInputStream ->
+                var zipEntry = zipInputStream.nextEntry
+                while (zipEntry != null) {
+                    val newFile = File(targetDir, zipEntry.name)
+                    if (zipEntry.isDirectory) {
+                        newFile.mkdirs()
+                    } else {
+                        File(newFile.parent!!).mkdirs()
+                        FileOutputStream(newFile).use { out ->
+                            val buffer = ByteArray(4096)
+                            var len: Int
+                            while (zipInputStream.read(buffer).also { len = it } > 0) {
+                                out.write(buffer, 0, len)
+                            }
                         }
-                        zipInputStream.closeEntry()
-                        zipEntry = zipInputStream.nextEntry
                     }
+                    zipEntry = zipInputStream.nextEntry
                 }
-            }
-        } catch (e: IOException) {
-            Log.e(TAG, "Error extracting model file", e)
-            Toast.makeText(this, "Failed to extract model: ${e.message}", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun extractFile(zipInputStream: ZipInputStream, targetFile: File) {
-        FileOutputStream(targetFile).use { fileOutputStream ->
-            val buffer = ByteArray(4096)
-            var length: Int
-            while (zipInputStream.read(buffer).also { length = it } > 0) {
-                fileOutputStream.write(buffer, 0, length)
             }
         }
     }
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     private fun startRecording() {
-        if (!isModelInitialized) {
-            Toast.makeText(this, "Model is not initialized yet", Toast.LENGTH_SHORT).show()
-            return
-        }
+        if (!isModelInitialized) return
 
         try {
-            // Initialize recognizer
             recognizer = Recognizer(model, SAMPLE_RATE.toFloat())
-
-            // Initialize AudioRecord
-            val bufferSize = AudioRecord.getMinBufferSize(
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT
-            )
-
             audioRecord = AudioRecord(
                 MediaRecorder.AudioSource.MIC,
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
-                bufferSize
+                AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             )
-
-            if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
-                throw IOException("Failed to initialize AudioRecord")
-            }
 
             audioRecord?.startRecording()
             isRecording = true
-            recordButton.text = "Stop"
-            resultTextView.text = "Listening..."
+            viewModel.updateListeningText("Listening...")
 
-            // Start processing audio
             val buffer = ShortArray(BUFFER_SIZE_ELEMENTS)
-
             recordingJob = scope.launch(Dispatchers.IO) {
-                try {
-                    while (isRecording) {
-                        val read = audioRecord?.read(buffer, 0, buffer.size) ?: -1
-                        Log.d(TAG, "Audio read size: $read")
-                        if (read > 0) {
-                            // Convert shorts to bytes for recognizer
-                            val byteBuffer = ByteBuffer.allocate(read * 2) // 2 bytes per short
-                                .order(ByteOrder.LITTLE_ENDIAN)
+                while (isRecording) {
+                    val read = audioRecord?.read(buffer, 0, buffer.size) ?: -1
+                    if (read > 0) {
+                        val byteBuffer = ByteBuffer.allocate(read * 2).order(ByteOrder.LITTLE_ENDIAN)
+                        for (i in 0 until read) byteBuffer.putShort(buffer[i])
+                        val data = byteBuffer.array()
 
-                            for (i in 0 until read) {
-                                byteBuffer.putShort(buffer[i])
+                        if (recognizer?.acceptWaveForm(data, data.size) == true) {
+                            val result = recognizer?.result ?: ""
+                            withContext(Dispatchers.Main) {
+                                processResult(result, true)
                             }
-
-                            val data = byteBuffer.array()
-
-                            // Process audio
-                            if (recognizer?.acceptWaveForm(data, read * 2) == true) {
-                                Log.d(TAG, "Got final result!")
-                                // Final result
-                                val result = recognizer?.result ?: ""
-                                withContext(Dispatchers.Main) {
-                                    processResult(result, true)
-                                }
-                            } else {
-                                // Partial result
-                                Log.d(TAG, "Partial result: ${recognizer?.partialResult}")
-                                val partial = recognizer?.partialResult ?: ""
-                                withContext(Dispatchers.Main) {
-                                    processResult(partial, false)
-                                }
+                        } else {
+                            val partial = recognizer?.partialResult ?: ""
+                            withContext(Dispatchers.Main) {
+                                processResult(partial, false)
                             }
                         }
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error during recording", e)
-                    withContext(Dispatchers.Main) {
-                        resultTextView.text = "Error: ${e.message}"
-                        stopRecording()
-                    }
                 }
             }
-        } catch (e: IOException) {
-            Log.e(TAG, "Failed to start recording", e)
-            resultTextView.text = "Failed to start recording: ${e.message}"
+        } catch (e: Exception) {
+            Log.e(TAG, "Recording failed", e)
+            viewModel.updateUserText("Recording error: ${e.message}", false)
         }
     }
 
     private fun processResult(result: String, isFinal: Boolean) {
-        try {
-            val jsonObject = JSONObject(result)
-            Log.d(TAG, "Raw recognizer output: $result")
-            val text = if (isFinal) {
-                jsonObject.optString("text", "")
-            } else {
-                jsonObject.optString("partial", "")
+        val jsonObject = JSONObject(result)
+        val text = if (isFinal) jsonObject.optString("text", "") else jsonObject.optString("partial", "")
+        if (text.isNotEmpty()) {
+            if(isFinal) {
+                viewModel.updateUserText(text, true)
+                stopRecording()
             }
-
-            // Update UI
-            if (text.isNotEmpty()) {
-                resultTextView.text = if (isFinal) "Final: $text" else "Partial: $text"
-
-                // Handle the recognized text here
-                if (isFinal && text.isNotEmpty()) {
-                    handleRecognizedText(text)
-                }
+            else {
+                viewModel.updateUserText("Partial: $text", false)
             }
-        } catch (e: JSONException) {
-            Log.e(TAG, "Error parsing JSON result", e)
         }
     }
 
-    private fun handleRecognizedText(text: String) {
-        // Here you can add your logic to process the recognized text
-        // For example, sending it to an AI service or triggering Pepper robot actions
-        Log.d(TAG, "Recognized text: $text")
-
-        // Example: Stop recording after processing final result
-        stopRecording()
-    }
-
     private fun stopRecording() {
-        // Cancel the coroutine job
         recordingJob?.cancel()
         recordingJob = null
-
-        // Stop and release audio recorder
         audioRecord?.stop()
         audioRecord?.release()
         audioRecord = null
-
-        // Free recognizer
         recognizer?.close()
         recognizer = null
-
-        // Update UI
-        recordButton.text = "Start"
         isRecording = false
+        viewModel.updateListeningText("Stopped")
     }
 
     override fun onDestroy() {
         super.onDestroy()
         stopRecording()
-
-        // Free model resources
-        if (::model.isInitialized) {
-            model.close()
-        }
-
-        // Unregister from QiSDK
-        try {
-            QiSDK.unregister(this, this)
-        } catch (e: Exception) {
-            Log.w(TAG, "QiSDK unregister failed", e)
-        }
+        if (::model.isInitialized) model.close()
+        QiSDK.unregister(this, this)
     }
 
-    // Required RobotLifecycleCallbacks methods for Pepper integration
     override fun onRobotFocusGained(qiContext: QiContext) {
-        // Robot focus gained - you can perform robot-specific actions here
         Log.d(TAG, "Robot focus gained")
     }
 
     override fun onRobotFocusLost() {
-        // Robot focus lost
         Log.d(TAG, "Robot focus lost")
     }
 
     override fun onRobotFocusRefused(reason: String) {
-        // Robot focus refused
         Log.e(TAG, "Robot focus refused: $reason")
     }
 
-    @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == RECORD_AUDIO_REQUEST_CODE) {
-            if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                startRecording()
-            } else {
-                Toast.makeText(this, "Microphone permission is required", Toast.LENGTH_SHORT).show()
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun MainScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Voice App") },
+                    actions = {
+                        IconButton(onClick = onSettingsClick) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        }
+                    }
+                )
+            }
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Press the button to talk with Pepper.", style = MaterialTheme.typography.bodyLarge)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(viewModel.listeningText.value, color = Color.DarkGray)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(viewModel.userInput.value, modifier = Modifier.fillMaxWidth().background(Color(0xFFE0F7FA)).padding(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(viewModel.aiResponse.value, modifier = Modifier.fillMaxWidth().background(Color(0xFFF1F8E9)).padding(8.dp))
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    FloatingActionButton(
+                        onClick = { viewModel.toggleListening() },
+                        containerColor = if (viewModel.isListening.value) Color(0xFFD32F2F) else Color(0xFF6200EE),
+                        shape = CircleShape,
+                    ) {
+                        Icon(Icons.Filled.Mic, contentDescription = "Mic", tint = Color.White)
+                    }
+                }
             }
         }
     }

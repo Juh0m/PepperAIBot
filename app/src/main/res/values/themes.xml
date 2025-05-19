@@ -1,5 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-
-    <style name="Theme.PepperAIBot" parent="Theme.AppCompat.Light.DarkActionBar" />
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.PepperAIBot" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your theme here -->
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+        <item name="colorSecondary">@color/listening</item>
+    </style>
 </resources>
