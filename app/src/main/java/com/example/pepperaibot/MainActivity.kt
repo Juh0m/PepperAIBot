@@ -99,11 +99,11 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
             QiSDK.register(this, this)
         } catch (e: SecurityException) {
             Log.e("QiSDK", "Failed to register QiSDK due to SecurityException", e)
-            // Optionally handle gracefully or alert user
         }
         checkPermissions()
     }
 
+    // Check microphone permissions
     private fun checkPermissions() {
         val permissions = mutableListOf<String>()
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -260,7 +260,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Voice App") },
+                    title = { Text("Pepper Chat") },
                     actions = {
                         IconButton(onClick = onSettingsClick) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings")

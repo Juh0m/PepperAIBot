@@ -30,10 +30,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <receiver
-            android:name="com.aldebaran.qi.sdk.internal.broadcast.EventReceiver"
-            android:exported="false"
-            tools:node="merge" />
+        <activity android:name=".SettingsActivity">
 
+        </activity>
     </application>
 </manifest>
