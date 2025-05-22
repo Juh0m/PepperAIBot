@@ -1,20 +1,55 @@
 package com.example.pepperaibot
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import com.example.pepperaibot.ui.theme.PepperAIBotTheme
-
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             PepperAIBotTheme {
-                Text("Settings Screen")
+                SettingsScreen()
             }
         }
+    }
+}
+
+@Composable
+fun SettingsScreen() {
+    val context = LocalContext.current
+    val sharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+
+    var apiUrl by remember {
+        mutableStateOf(sharedPreferences.getString("api_url", "") ?: "")
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Top
+    ) {
+        Text("Settings Screen", style = MaterialTheme.typography.headlineSmall)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Enter the API URL:", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+        TextField(
+            value = apiUrl,
+            onValueChange = {
+                apiUrl = it
+                sharedPreferences.edit().putString("api_url", it).apply()
+            },
+            label = { Text("API URL") },
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
