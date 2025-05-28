@@ -31,6 +31,9 @@ fun SettingsScreen() {
     var apiUrl by remember {
         mutableStateOf(sharedPreferences.getString("api_url", "") ?: "")
     }
+    var apiKey by remember {
+        mutableStateOf(sharedPreferences.getString("api_key", "") ?: "")
+    }
 
     Column(
         modifier = Modifier
@@ -51,5 +54,15 @@ fun SettingsScreen() {
             label = { Text("API URL") },
             modifier = Modifier.fillMaxWidth()
         )
+        Text("Enter the API key:", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+        TextField(
+            value = apiKey,
+            onValueChange = {
+                apiKey= it
+                sharedPreferences.edit().putString("api_key", it).apply()
+            },
+            label = { Text("API KEY") },
+            modifier = Modifier.fillMaxWidth())
     }
 }
