@@ -33,15 +33,25 @@ import com.aldebaran.qi.sdk.QiContext
 import com.aldebaran.qi.sdk.QiSDK
 import com.aldebaran.qi.sdk.RobotLifecycleCallbacks
 import com.example.pepperaibot.ui.theme.PepperAIBotTheme
-import kotlinx.coroutines.*
-import org.json.JSONObject
-import org.vosk.*
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.zip.ZipInputStream
+import kotlinx.coroutines.*
+import okhttp3.OkHttpClient
+import okhttp3.Interceptor
+import org.json.JSONObject
+import org.vosk.*
+import retrofit2.Call
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.Headers
+import retrofit2.http.POST
+import retrofit2.Retrofit
+
+
 
 class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
@@ -86,7 +96,6 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         }
 
         viewModel.onStopListening = { stopRecording() }
-
         setContent {
             PepperAIBotTheme {
                 MainScreen(viewModel = viewModel) {
@@ -210,12 +219,39 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     }
 
     private fun processResult(result: String, isFinal: Boolean) {
-        val jsonObject = JSONObject(result)
-        val text = if (isFinal) jsonObject.optString("text", "") else jsonObject.optString("partial", "")
+        //val jsonObject = JSONObject(result)
+        // val text = if (isFinal) jsonObject.optString("text", "") else jsonObject.optString("partial", "")
+        val text = result
         if (text.isNotEmpty()) {
             if(isFinal) {
                 viewModel.updateUserText(text, true)
                 stopRecording()
+
+                // Get Pepper's response from specified API
+                val request = ChatRequest(
+                    model = "gpt-4o-mini",
+                    messages = listOf(
+                        Message(role = "user", content = text)
+                    )
+                )
+                RetrofitClient.api.getChatCompletion(request).enqueue(object : retrofit2.Callback<ChatResponse> {
+                    override fun onResponse(call: Call<ChatResponse>, response: retrofit2.Response<ChatResponse>) {
+                        if (response.isSuccessful) {
+                            val reply = response.body()?.choices?.firstOrNull()?.message?.content
+                            Log.e(TAG, "OpenAI Reply: $reply")
+                            if (reply != null) {
+                                viewModel.updateAIResponse(reply)
+                            }
+                        } else {
+                            Log.e(TAG, "Error: ${response.code()} ${response.errorBody()?.string()}")
+                            viewModel.updateAIResponse("Failed to access API. Please check your API URL and API key.")
+                        }
+                    }
+
+                    override fun onFailure(call: Call<ChatResponse>, t: Throwable) {
+                        t.printStackTrace()
+                    }
+                })
             }
             else {
                 viewModel.updateUserText("Partial: $text", false)
@@ -235,6 +271,63 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         viewModel.updateListeningText("Stopped")
     }
 
+    // HTTP REQUESTS
+    // Request
+    data class Message(
+        val role: String,
+        val content: String
+    )
+
+    data class ChatRequest(
+        val model: String,
+        val messages: List<Message>
+    )
+
+    // Response
+    data class ChatResponse(
+        val choices: List<Choice>
+    )
+
+    data class Choice(
+        val index: Int,
+        val message: Message,
+        val finish_reason: String
+    )
+
+    interface AIApi {
+        @Headers("Content-Type: application/json")
+        @POST("v1/chat/completions")
+        fun getChatCompletion(
+            @Body request: ChatRequest
+        ): Call<ChatResponse>
+    }
+
+    object RetrofitClient {
+        private const val BASE_URL = "https://api.openai.com/"
+        private const val API_KEY = "key"
+
+        private val authInterceptor = Interceptor { chain ->
+            val newRequest = chain.request().newBuilder()
+                .addHeader("Authorization", "Bearer $API_KEY")
+                .build()
+            chain.proceed(newRequest)
+        }
+
+        private val client = OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
+            .build()
+
+        val api: AIApi by lazy {
+            Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .client(client)
+                .build()
+                .create(AIApi::class.java)
+        }
+    }
+
+    // PEPPER QISDK STUFF
     override fun onDestroy() {
         super.onDestroy()
         stopRecording()
