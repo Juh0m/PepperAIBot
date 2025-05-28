@@ -34,6 +34,9 @@ fun SettingsScreen() {
     var apiKey by remember {
         mutableStateOf(sharedPreferences.getString("api_key", "") ?: "")
     }
+    var aiModel by remember {
+        mutableStateOf(sharedPreferences.getString("ai_model", "") ?: "")
+    }
 
     Column(
         modifier = Modifier
@@ -63,6 +66,18 @@ fun SettingsScreen() {
                 sharedPreferences.edit().putString("api_key", it).apply()
             },
             label = { Text("API KEY") },
-            modifier = Modifier.fillMaxWidth())
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text("Enter the AI Model:", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+        TextField(
+            value = aiModel,
+            onValueChange = {
+                aiModel= it
+                sharedPreferences.edit().putString("ai_model", it).apply()
+            },
+            label = { Text("AI Model") },
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
