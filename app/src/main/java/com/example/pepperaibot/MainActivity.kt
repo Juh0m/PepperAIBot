@@ -42,7 +42,7 @@ import retrofit2.Retrofit
 
 class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
-    private val TAG = "VoskDemo"
+    private val TAG = "PepperAI"
     private val SAMPLE_RATE = 16000
     private val BUFFER_SIZE_ELEMENTS = 65536
     private val RECORD_AUDIO_REQUEST_CODE = 101
@@ -202,7 +202,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Recording failed", e)
-            viewModel.updateUserText("Recording error: ${e.message}", false)
+            viewModel.updateListeningText("Recording error: ${e.message}")
         }
     }
 
@@ -214,7 +214,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 viewModel.updateUserText(text, true)
                 stopRecording()
                 // Get Pepper's response from specified API
-
+                // Only works with OpenAI or similar APIs
                 val request = ChatRequest(
                     model = RetrofitClient.aiModel,
                     messages = listOf(
@@ -226,25 +226,27 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                     override fun onResponse(call: Call<ChatResponse>, response: retrofit2.Response<ChatResponse>) {
                         if (response.isSuccessful) {
                             val reply = response.body()?.choices?.firstOrNull()?.message?.content
-                            Log.e(TAG, "AI Reply: $reply")
+                            Log.e(TAG, "Full AI Reply: $reply")
                             if (reply != null) {
                                 viewModel.updateAIResponse(reply)
                                 robotSay(reply)
                             }
                         } else {
+                            // Connection to API was successful but response not OK
                             Log.e(TAG, "Error: ${response.code()} ${response.errorBody()?.string()}")
-                            viewModel.updateAIResponse("Failed to access API. Please check your API URL and API key.")
+                            viewModel.updateAIResponse("API responded with error ${response.code()}. Please check your API key and AI model.")
                         }
                     }
 
+                    // Failure to connect to API.
                     override fun onFailure(call: Call<ChatResponse>, t: Throwable) {
                         t.printStackTrace()
-                        Log.e(TAG, "Fail.")
+                        viewModel.updateAIResponse("Failed to access API. Please check your API URL.")
                     }
                 })
             }
             else {
-                viewModel.updateUserText("Partial: $text", false)
+                viewModel.updateUserText("Converting speech to text in progress: $text", false)
             }
         }
     }
@@ -369,6 +371,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                         .run()
                 } catch (e: Exception) {
                     Log.e("Speech", "Failed to make Pepper speak", e)
+                    viewModel.updateListeningText("Pepper was unable to speak.")
                 }
             }
         } ?: Log.w("Speech", "QiContext is not available yet")
