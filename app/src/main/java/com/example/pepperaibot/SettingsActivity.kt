@@ -62,7 +62,7 @@ fun SettingsScreen() {
         TextField(
             value = apiKey,
             onValueChange = {
-                apiKey= it
+                apiKey = it
                 sharedPreferences.edit().putString("api_key", it).apply()
             },
             label = { Text("API KEY") },
@@ -73,10 +73,11 @@ fun SettingsScreen() {
         TextField(
             value = aiModel,
             onValueChange = {
-                aiModel= it
+                aiModel = it
                 sharedPreferences.edit().putString("ai_model", it).apply()
             },
             label = { Text("AI Model") },
             modifier = Modifier.fillMaxWidth()
         )
     }
+}
