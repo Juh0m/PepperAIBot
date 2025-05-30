@@ -1,6 +1,7 @@
 package com.example.pepperaibot
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioFormat
@@ -14,11 +15,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AppCompatActivity
+import androidx.collection.buildLongFloatMap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -51,8 +53,6 @@ import retrofit2.http.Headers
 import retrofit2.http.POST
 import retrofit2.Retrofit
 
-
-
 class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     private val TAG = "VoskDemo"
@@ -82,7 +82,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        RetrofitClient.setup(applicationContext)
         viewModel.onStartListening = {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                 startRecording()
@@ -101,7 +101,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 MainScreen(viewModel = viewModel) {
                     startActivity(Intent(this, SettingsActivity::class.java))
                 }
-            }
+              }
         }
 
         try {
@@ -219,26 +219,25 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     }
 
     private fun processResult(result: String, isFinal: Boolean) {
-        //val jsonObject = JSONObject(result)
-        // val text = if (isFinal) jsonObject.optString("text", "") else jsonObject.optString("partial", "")
-        val text = result
+        val jsonObject = JSONObject(result)
+        val text = if (isFinal) jsonObject.optString("text", "") else jsonObject.optString("partial", "")
         if (text.isNotEmpty()) {
             if(isFinal) {
                 viewModel.updateUserText(text, true)
                 stopRecording()
-
                 // Get Pepper's response from specified API
                 val request = ChatRequest(
-                    model = "gpt-4o-mini",
+                    model = "gemma-3-1b-it-qat",
                     messages = listOf(
                         Message(role = "user", content = text)
                     )
                 )
-                RetrofitClient.api.getChatCompletion(request).enqueue(object : retrofit2.Callback<ChatResponse> {
+                val api = RetrofitClient.getApi()
+                api.getChatCompletion(request).enqueue(object : retrofit2.Callback<ChatResponse> {
                     override fun onResponse(call: Call<ChatResponse>, response: retrofit2.Response<ChatResponse>) {
                         if (response.isSuccessful) {
                             val reply = response.body()?.choices?.firstOrNull()?.message?.content
-                            Log.e(TAG, "OpenAI Reply: $reply")
+                            Log.e(TAG, "AI Reply: $reply")
                             if (reply != null) {
                                 viewModel.updateAIResponse(reply)
                             }
@@ -250,6 +249,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
                     override fun onFailure(call: Call<ChatResponse>, t: Throwable) {
                         t.printStackTrace()
+                        Log.e(TAG, "FAIL LOL U IDITO")
                     }
                 })
             }
@@ -303,27 +303,44 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     }
 
     object RetrofitClient {
-        private const val BASE_URL = "https://api.openai.com/"
-        private const val API_KEY = "key"
 
-        private val authInterceptor = Interceptor { chain ->
-            val newRequest = chain.request().newBuilder()
-                .addHeader("Authorization", "Bearer $API_KEY")
+        private lateinit var apiKey: String
+        private lateinit var apiUrl: String
+        private lateinit var api: AIApi
+
+        private var isInitialized = false
+
+        fun setup(context: Context) {
+            val sharedPrefs = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            apiKey = sharedPrefs.getString("api_key", "") ?: ""
+            apiUrl = sharedPrefs.getString("api_url", "http://pepper.com") ?: ""
+
+            val authInterceptor = Interceptor { chain ->
+                val newRequest = chain.request().newBuilder()
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .build()
+                chain.proceed(newRequest)
+            }
+
+            val client = OkHttpClient.Builder()
+                .addInterceptor(authInterceptor)
                 .build()
-            chain.proceed(newRequest)
-        }
 
-        private val client = OkHttpClient.Builder()
-            .addInterceptor(authInterceptor)
-            .build()
-
-        val api: AIApi by lazy {
-            Retrofit.Builder()
-                .baseUrl(BASE_URL)
+            api = Retrofit.Builder()
+                .baseUrl(apiUrl)
                 .addConverterFactory(GsonConverterFactory.create())
                 .client(client)
                 .build()
                 .create(AIApi::class.java)
+
+            isInitialized = true
+        }
+
+        fun getApi(): AIApi {
+            if (!isInitialized) {
+                throw IllegalStateException("RetrofitClient is not initialized. Call setup(context) first.")
+            }
+            return api
         }
     }
 
