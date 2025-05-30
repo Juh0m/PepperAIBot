@@ -1,12 +1,8 @@
 package com.example.pepperaibot
-
-import android.Manifest
-import android.content.Context
-import android.content.Intent
+import android.*
+import android.content.*
 import android.content.pm.PackageManager
-import android.media.AudioFormat
-import android.media.AudioRecord
-import android.media.MediaRecorder
+import android.media.*
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -15,42 +11,33 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AppCompatActivity
-import androidx.collection.buildLongFloatMap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.*
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.aldebaran.qi.sdk.QiContext
-import com.aldebaran.qi.sdk.QiSDK
-import com.aldebaran.qi.sdk.RobotLifecycleCallbacks
+import com.aldebaran.qi.sdk.*
+import com.aldebaran.qi.sdk.builder.SayBuilder
+import com.aldebaran.qi.sdk.`object`.conversation.Say
 import com.example.pepperaibot.ui.theme.PepperAIBotTheme
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
+import java.io.*
+import java.nio.*
 import java.util.zip.ZipInputStream
 import kotlinx.coroutines.*
-import okhttp3.OkHttpClient
-import okhttp3.Interceptor
+import okhttp3.*
 import org.json.JSONObject
 import org.vosk.*
 import retrofit2.Call
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.Body
+import retrofit2.http.*
 import retrofit2.http.Headers
-import retrofit2.http.POST
 import retrofit2.Retrofit
 
 class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
@@ -60,6 +47,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     private val BUFFER_SIZE_ELEMENTS = 65536
     private val RECORD_AUDIO_REQUEST_CODE = 101
 
+    private var qiContext: QiContext? = null
     private val scope = CoroutineScope(Dispatchers.Main)
     private lateinit var model: Model
     private var recognizer: Recognizer? = null
@@ -241,6 +229,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                             Log.e(TAG, "AI Reply: $reply")
                             if (reply != null) {
                                 viewModel.updateAIResponse(reply)
+                                robotSay(reply)
                             }
                         } else {
                             Log.e(TAG, "Error: ${response.code()} ${response.errorBody()?.string()}")
@@ -250,7 +239,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
                     override fun onFailure(call: Call<ChatResponse>, t: Throwable) {
                         t.printStackTrace()
-                        Log.e(TAG, "FAIL LOL U IDITO")
+                        Log.e(TAG, "Fail.")
                     }
                 })
             }
@@ -308,6 +297,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         private lateinit var apiKey: String
         private lateinit var apiUrl: String
         private lateinit var api: AIApi
+        private lateinit var authInterceptor : Interceptor
 
         public lateinit var aiModel : String
 
@@ -319,7 +309,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
             apiUrl = sharedPrefs.getString("api_url", "http://pepper.com") ?: ""
             aiModel = sharedPrefs.getString("api_model", "") ?: ""
 
-            val authInterceptor = Interceptor { chain ->
+            authInterceptor = Interceptor { chain ->
                 val newRequest = chain.request().newBuilder()
                     .addHeader("Authorization", "Bearer $apiKey")
                     .build()
@@ -358,6 +348,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     override fun onRobotFocusGained(qiContext: QiContext) {
         Log.d(TAG, "Robot focus gained")
+        this.qiContext = qiContext
     }
 
     override fun onRobotFocusLost() {
@@ -366,6 +357,21 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     override fun onRobotFocusRefused(reason: String) {
         Log.e(TAG, "Robot focus refused: $reason")
+    }
+
+    private fun robotSay(text: String) {
+        qiContext?.let { context ->
+            CoroutineScope(Dispatchers.Default).launch {
+                try {
+                    SayBuilder.with(context)
+                        .withText(text)
+                        .build()
+                        .run()
+                } catch (e: Exception) {
+                    Log.e("Speech", "Failed to make Pepper speak", e)
+                }
+            }
+        } ?: Log.w("Speech", "QiContext is not available yet")
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
