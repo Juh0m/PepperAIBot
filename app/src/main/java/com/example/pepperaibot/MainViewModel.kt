@@ -33,7 +33,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateUserText(text: String, isFinal: Boolean) {
         if (isFinal) {
             userInput.value = "You: $text"
-            updateAIResponse("<insert pepper response here>")
         } else {
             userInput.value = "Listening: $text"
         }
