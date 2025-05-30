@@ -63,7 +63,7 @@ fun SettingsScreen() {
             value = apiKey,
             onValueChange = {
                 apiKey = it
-                sharedPreferences.edit().putString("api_key", it).apply()
+                sharedPreferences.edit { putString("api_key", it) }
             },
             label = { Text("API KEY") },
             modifier = Modifier.fillMaxWidth()
@@ -74,7 +74,7 @@ fun SettingsScreen() {
             value = aiModel,
             onValueChange = {
                 aiModel = it
-                sharedPreferences.edit().putString("ai_model", it).apply()
+                sharedPreferences.edit { putString("ai_model", it) }
             },
             label = { Text("AI Model") },
             modifier = Modifier.fillMaxWidth()
