@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.pepperaibot.ui.theme.PepperAIBotTheme
+import androidx.core.content.edit
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,7 +38,6 @@ fun SettingsScreen() {
     var aiModel by remember {
         mutableStateOf(sharedPreferences.getString("ai_model", "") ?: "")
     }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -52,7 +52,7 @@ fun SettingsScreen() {
             value = apiUrl,
             onValueChange = {
                 apiUrl = it
-                sharedPreferences.edit().putString("api_url", it).apply()
+                sharedPreferences.edit { putString("api_url", it) }
             },
             label = { Text("API URL") },
             modifier = Modifier.fillMaxWidth()
@@ -80,4 +80,3 @@ fun SettingsScreen() {
             modifier = Modifier.fillMaxWidth()
         )
     }
-}
