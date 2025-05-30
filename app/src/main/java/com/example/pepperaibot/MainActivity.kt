@@ -226,8 +226,9 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 viewModel.updateUserText(text, true)
                 stopRecording()
                 // Get Pepper's response from specified API
+
                 val request = ChatRequest(
-                    model = "gemma-3-1b-it-qat",
+                    model = RetrofitClient.aiModel,
                     messages = listOf(
                         Message(role = "user", content = text)
                     )
@@ -308,12 +309,15 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         private lateinit var apiUrl: String
         private lateinit var api: AIApi
 
+        public lateinit var aiModel : String
+
         private var isInitialized = false
 
         fun setup(context: Context) {
             val sharedPrefs = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
             apiKey = sharedPrefs.getString("api_key", "") ?: ""
             apiUrl = sharedPrefs.getString("api_url", "http://pepper.com") ?: ""
+            aiModel = sharedPrefs.getString("api_model", "") ?: ""
 
             val authInterceptor = Interceptor { chain ->
                 val newRequest = chain.request().newBuilder()
