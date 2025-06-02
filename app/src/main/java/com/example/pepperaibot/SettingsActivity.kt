@@ -38,20 +38,20 @@ fun SettingsScreen() {
     var aiModel by remember {
         mutableStateOf(sharedPreferences.getString("ai_model", "") ?: "")
     }
-    var ownTextToSpeech by remember {
-        mutableStateOf(sharedPreferences.getBoolean("own_text_to_speech", false))
+    var voiceRecognition by remember {
+        mutableStateOf(sharedPreferences.getBoolean("voice_recognition", false))
     }
-    var ttsApiUrl by remember {
-        mutableStateOf(sharedPreferences.getString("tts_api_url", "") ?: "")
+    var voiceRecognitionApiUrl by remember {
+        mutableStateOf(sharedPreferences.getString("voice_recognition_api_url", "") ?: "")
     }
-    var ttsApiKey by remember {
-        mutableStateOf(sharedPreferences.getString("tts_api_key", "") ?: "")
+    var voiceRecognitionApiKey by remember {
+        mutableStateOf(sharedPreferences.getString("voice_recognition_api_key", "") ?: "")
     }
-    var ttsModel by remember {
-        mutableStateOf(sharedPreferences.getString("tts_model", "") ?: "")
+    var voiceRecognitionModel by remember {
+        mutableStateOf(sharedPreferences.getString("voice_recognition_model", "") ?: "")
     }
 
-    if(ownTextToSpeech) {
+    if(voiceRecognition) {
             Log.e("ok lol", "oklol")
         }
         else {
@@ -108,61 +108,61 @@ fun SettingsScreen() {
             modifier = Modifier.fillMaxWidth()
         )
 
-        // OwnTextToSpeech Checkbox
+        // voice_recognition Checkbox
         Spacer(modifier = Modifier.height(24.dp))
         Row(
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
             Checkbox(
-                checked = ownTextToSpeech,
+                checked = voiceRecognition,
                 onCheckedChange = {
-                    ownTextToSpeech = it
-                    sharedPreferences.edit().putBoolean("own_text_to_speech", it).apply()
+                    voiceRecognition = it
+                    sharedPreferences.edit().putBoolean("voice_recognition", it).apply()
                 }
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Use Own Text-To-Speech", style = MaterialTheme.typography.bodyLarge)
+            Text("Use your own voice recognition", style = MaterialTheme.typography.bodyLarge)
         }
 
-// Conditionally show TTS fields
-        if (ownTextToSpeech) {
+        // Conditionally show TTS fields
+        if (voiceRecognition) {
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Text-To-Speech API URL:", style = MaterialTheme.typography.bodyLarge)
+            Text("Voice recognition API URL:", style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(8.dp))
             TextField(
-                value = ttsApiUrl,
+                value = voiceRecognitionApiUrl,
                 onValueChange = {
-                    ttsApiUrl = it
-                    sharedPreferences.edit().putString("tts_api_url", it).apply()
+                    voiceRecognitionApiUrl = it
+                    sharedPreferences.edit().putString("voice_recognition_api_url", it).apply()
                 },
-                label = { Text("TTS API URL") },
+                label = { Text("Voice recognition API URL") },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Text-To-Speech API Key:", style = MaterialTheme.typography.bodyLarge)
+            Text("Voice recognition API Key:", style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(8.dp))
             TextField(
-                value = ttsApiKey,
+                value = voiceRecognitionApiKey,
                 onValueChange = {
-                    ttsApiKey = it
-                    sharedPreferences.edit().putString("tts_api_key", it).apply()
+                    voiceRecognitionApiKey = it
+                    sharedPreferences.edit().putString("voice_recognition_api_key", it).apply()
                 },
-                label = { Text("TTS API Key") },
+                label = { Text("Voice recognition API Key") },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Text-To-Speech Model:", style = MaterialTheme.typography.bodyLarge)
+            Text("Voice Recognition Model:", style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(8.dp))
             TextField(
-                value = ttsModel,
+                value = voiceRecognitionModel,
                 onValueChange = {
-                    ttsModel = it
-                    sharedPreferences.edit().putString("tts_model", it).apply()
+                    voiceRecognitionModel = it
+                    sharedPreferences.edit().putString("voice_recognition_model", it).apply()
                 },
-                label = { Text("TTS Model") },
+                label = { Text("Voice Recognition Model") },
                 modifier = Modifier.fillMaxWidth()
             )
         }
