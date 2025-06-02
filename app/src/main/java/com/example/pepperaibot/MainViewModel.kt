@@ -34,7 +34,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (isFinal) {
             userInput.value = "You: $text"
         } else {
-            userInput.value = "Listening: $text"
+            userInput.value = text
         }
     }
 
