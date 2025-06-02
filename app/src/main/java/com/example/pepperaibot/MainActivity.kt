@@ -212,7 +212,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         if (text.isNotEmpty()) {
             if(isFinal) {
                 viewModel.updateUserText(text, true)
-                stopRecording()
+                viewModel.toggleListening()
                 // Get Pepper's response from specified API
                 // Only works with OpenAI or similar APIs
                 val request = ChatRequest(
@@ -380,6 +380,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun MainScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
+        var isListening = viewModel.isListening.value
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -410,9 +411,13 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     FloatingActionButton(
-                        onClick = { viewModel.toggleListening() },
+                        onClick = {
+                            if (!isListening) {
+                                viewModel.toggleListening()
+                            }
+                        },
                         containerColor = if (viewModel.isListening.value) Color(0xFFD32F2F) else Color(0xFF6200EE),
-                        shape = CircleShape,
+
                     ) {
                         Icon(Icons.Filled.Mic, contentDescription = "Mic", tint = Color.White)
                     }
