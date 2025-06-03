@@ -11,6 +11,7 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
+import java.util.function.ToLongFunction
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     var isListening = mutableStateOf(false)
@@ -32,6 +33,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     object RetrofitClient {
         private lateinit var apiKey: String
         private lateinit var apiUrl: String
+        private var readTimeout : Long = 30 // temporary init value
         private lateinit var api: AIApi
         private lateinit var authInterceptor: Interceptor
 
@@ -42,8 +44,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         fun setup(context: Context) {
             val sharedPrefs = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
             apiKey = sharedPrefs.getString("api_key", "") ?: ""
-            apiUrl = sharedPrefs.getString("api_url", "/") ?: ""
+            apiUrl = sharedPrefs.getString("api_url", "http://google.com/") ?: ""
             aiModel = sharedPrefs.getString("api_model", "") ?: ""
+            readTimeout = sharedPrefs.getLong("api_read_timeout", 30L)
 
             authInterceptor = Interceptor { chain ->
                 val newRequest = chain.request().newBuilder()
@@ -54,7 +57,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             val client = OkHttpClient.Builder()
                 .addInterceptor(authInterceptor)
-                .readTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(readTimeout, TimeUnit.SECONDS)
                 .build()
 
             api = Retrofit.Builder()
