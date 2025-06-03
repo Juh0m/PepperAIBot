@@ -6,11 +6,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.text.isDigitsOnly
 import com.example.pepperaibot.ui.theme.PepperAIBotTheme
 
 class SettingsActivity : ComponentActivity() {
@@ -50,12 +53,8 @@ fun SettingsScreen() {
     var voiceRecognitionModel by remember {
         mutableStateOf(sharedPreferences.getString("voice_recognition_model", "") ?: "")
     }
-
-    if(voiceRecognition) {
-        Log.e("ok lol", "oklol")
-    }
-    else {
-        Log.e("lolok", "lolok")
+    var readTimeout by remember {
+        mutableStateOf(sharedPreferences.getLong("api_read_timeout", 30).toString())
     }
 
     Column(
@@ -64,7 +63,8 @@ fun SettingsScreen() {
             .padding(16.dp),
         verticalArrangement = Arrangement.Top
     ) {
-        Text("Settings Screen", style = MaterialTheme.typography.headlineSmall)
+        Text("Settings", style = MaterialTheme.typography.headlineSmall)
+        Text("Changes to settings require restarting the app.", style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(16.dp))
 
         // API URL
@@ -125,7 +125,7 @@ fun SettingsScreen() {
             Text("Use your own voice recognition", style = MaterialTheme.typography.bodyLarge)
         }
 
-        // Conditionally show TTS fields
+        // If own voice recognition checkbox is checked
         if (voiceRecognition) {
             Spacer(modifier = Modifier.height(16.dp))
             Text("Voice recognition API URL:", style = MaterialTheme.typography.bodyLarge)
@@ -166,5 +166,22 @@ fun SettingsScreen() {
                 modifier = Modifier.fillMaxWidth()
             )
         }
+        // Wait timeout
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Enter the API wait timeout:", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+        TextField(
+            value = readTimeout,
+            onValueChange = {
+                if(it.isDigitsOnly()) {
+                    readTimeout = it
+                    val timeout = it.toLongOrNull() ?: 30L
+                    sharedPreferences.edit().putLong("api_read_timeout", timeout).apply()
+                }
+            },
+            label = { Text("API wait timeout (seconds)") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+        )
     }
 }
