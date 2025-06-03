@@ -5,6 +5,11 @@ import android.content.Context
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
+import com.example.pepperaibot.MainActivity.AIApi
+import okhttp3.Interceptor
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     var isListening = mutableStateOf(false)
@@ -20,6 +25,58 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     var onStartListening: (() -> Unit)? = null
     var onStopListening: (() -> Unit)? = null
+
+    // Retrofit Client
+
+    object RetrofitClient {
+        private lateinit var apiKey: String
+        private lateinit var apiUrl: String
+        private lateinit var api: AIApi
+        private lateinit var authInterceptor: Interceptor
+
+        public lateinit var aiModel: String
+
+        private var isInitialized = false
+
+        fun setup(context: Context) {
+            val sharedPrefs = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            apiKey = sharedPrefs.getString("api_key", "") ?: ""
+            apiUrl = sharedPrefs.getString("api_url", "http://pepper.com/") ?: ""
+            aiModel = sharedPrefs.getString("api_model", "") ?: ""
+
+            authInterceptor = Interceptor { chain ->
+                val newRequest = chain.request().newBuilder()
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .build()
+                chain.proceed(newRequest)
+            }
+
+            val client = OkHttpClient.Builder()
+                .addInterceptor(authInterceptor)
+                .build()
+
+            api = Retrofit.Builder()
+                .baseUrl(apiUrl)
+                .addConverterFactory(GsonConverterFactory.create())
+                .client(client)
+                .build()
+                .create(AIApi::class.java)
+
+            isInitialized = true
+        }
+
+        fun getApi(): AIApi {
+            if (!MainViewModel.RetrofitClient.isInitialized) {
+                throw IllegalStateException("RetrofitClient is not initialized. Call setup(context) first.")
+            }
+            return MainViewModel.RetrofitClient.api
+        }
+    }
+
+    public fun getRetrofitClient(): RetrofitClient {
+        return RetrofitClient
+    }
+
 
     fun toggleListening() {
         if (isListening.value) {
