@@ -13,7 +13,6 @@ import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -25,7 +24,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.aldebaran.qi.sdk.*
 import com.aldebaran.qi.sdk.builder.SayBuilder
-import com.aldebaran.qi.sdk.`object`.conversation.Say
 import com.example.pepperaibot.ui.theme.PepperAIBotTheme
 import java.io.*
 import java.nio.*
@@ -35,21 +33,24 @@ import okhttp3.*
 import org.json.JSONObject
 import org.vosk.*
 import retrofit2.Call
-import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 import retrofit2.http.Headers
-import retrofit2.Retrofit
 
 class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
+    // Tag for logging
     private val TAG = "PepperAI"
+
+    // Audio stuff
     private val SAMPLE_RATE = 16000
     private val BUFFER_SIZE_ELEMENTS = 65536
     private val RECORD_AUDIO_REQUEST_CODE = 101
 
+    // qiContext needed for making Pepper talk, needs focus
     private var qiContext: QiContext? = null
     private val scope = CoroutineScope(Dispatchers.Main)
     private lateinit var model: Model
+
     private var recognizer: Recognizer? = null
     private var audioRecord: AudioRecord? = null
     private var recordingJob: Job? = null
@@ -57,6 +58,9 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     private var isModelInitialized = false
 
     private val viewModel by viewModels<MainViewModel>()
+
+    // Retrofit client for HTTP requests
+    private lateinit var retrofitClient : MainViewModel.RetrofitClient
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -70,7 +74,8 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        RetrofitClient.setup(applicationContext)
+        retrofitClient = viewModel.getRetrofitClient()
+        retrofitClient.setup(applicationContext)
         viewModel.onStartListening = {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                 startRecording()
@@ -216,12 +221,12 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 // Get Pepper's response from specified API
                 // Only works with OpenAI or similar APIs
                 val request = ChatRequest(
-                    model = RetrofitClient.aiModel,
+                    model = retrofitClient.aiModel,
                     messages = listOf(
                         Message(role = "user", content = text)
                     )
                 )
-                val api = RetrofitClient.getApi()
+                val api = retrofitClient.getApi()
                 api.getChatCompletion(request).enqueue(object : retrofit2.Callback<ChatResponse> {
                     override fun onResponse(call: Call<ChatResponse>, response: retrofit2.Response<ChatResponse>) {
                         if (response.isSuccessful) {
@@ -294,51 +299,6 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         ): Call<ChatResponse>
     }
 
-    object RetrofitClient {
-
-        private lateinit var apiKey: String
-        private lateinit var apiUrl: String
-        private lateinit var api: AIApi
-        private lateinit var authInterceptor : Interceptor
-
-        public lateinit var aiModel : String
-
-        private var isInitialized = false
-
-        fun setup(context: Context) {
-            val sharedPrefs = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-            apiKey = sharedPrefs.getString("api_key", "") ?: ""
-            apiUrl = sharedPrefs.getString("api_url", "http://pepper.com") ?: ""
-            aiModel = sharedPrefs.getString("api_model", "") ?: ""
-
-            authInterceptor = Interceptor { chain ->
-                val newRequest = chain.request().newBuilder()
-                    .addHeader("Authorization", "Bearer $apiKey")
-                    .build()
-                chain.proceed(newRequest)
-            }
-
-            val client = OkHttpClient.Builder()
-                .addInterceptor(authInterceptor)
-                .build()
-
-            api = Retrofit.Builder()
-                .baseUrl(apiUrl)
-                .addConverterFactory(GsonConverterFactory.create())
-                .client(client)
-                .build()
-                .create(AIApi::class.java)
-
-            isInitialized = true
-        }
-
-        fun getApi(): AIApi {
-            if (!isInitialized) {
-                throw IllegalStateException("RetrofitClient is not initialized. Call setup(context) first.")
-            }
-            return api
-        }
-    }
 
     // PEPPER QISDK STUFF
     override fun onDestroy() {
