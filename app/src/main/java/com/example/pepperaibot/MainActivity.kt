@@ -57,6 +57,8 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     private var isRecording = false
     private var isModelInitialized = false
 
+    private val conversation = mutableListOf<Message>()
+
     private val viewModel by viewModels<MainViewModel>()
 
     // Retrofit client for HTTP requests
@@ -216,28 +218,31 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         val text = if (isFinal) jsonObject.optString("text", "") else jsonObject.optString("partial", "")
         if (text.isNotEmpty()) {
             if(isFinal) {
+                conversation.add(Message("user", text))
                 viewModel.updateUserText(text, true)
                 viewModel.toggleListening()
                 // Get Pepper's response from specified API
                 // Only works with OpenAI or similar APIs
+                conversation.add(Message("user", text))
                 val request = ChatRequest(
                     model = retrofitClient.aiModel,
-                    messages = listOf(
-                        Message(role = "user", content = text)
-                    )
+                    messages = conversation
                 )
                 val api = retrofitClient.getApi()
                 api.getChatCompletion(request).enqueue(object : retrofit2.Callback<ChatResponse> {
                     override fun onResponse(call: Call<ChatResponse>, response: retrofit2.Response<ChatResponse>) {
                         if (response.isSuccessful) {
                             val reply = response.body()?.choices?.firstOrNull()?.message?.content
+                            conversation.add(Message("assistant", reply.toString()))
                             Log.e(TAG, "Full AI Reply: $reply")
+
                             if (reply != null) {
                                 viewModel.updateAIResponse(reply)
                                 robotSay(reply)
                             }
                         } else {
                             // Connection to API was successful but response not OK
+                            conversation.add(Message("assistant", "AI was unable to respond."))
                             Log.e(TAG, "Error: ${response.code()} ${response.errorBody()?.string()}")
                             viewModel.updateAIResponse("API responded with error ${response.code()}. Please check your API key and AI model.")
                         }
