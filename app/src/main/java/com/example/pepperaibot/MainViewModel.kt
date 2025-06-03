@@ -10,6 +10,7 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     var isListening = mutableStateOf(false)
@@ -41,7 +42,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         fun setup(context: Context) {
             val sharedPrefs = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
             apiKey = sharedPrefs.getString("api_key", "") ?: ""
-            apiUrl = sharedPrefs.getString("api_url", "http://pepper.com/") ?: ""
+            apiUrl = sharedPrefs.getString("api_url", "/") ?: ""
             aiModel = sharedPrefs.getString("api_model", "") ?: ""
 
             authInterceptor = Interceptor { chain ->
@@ -53,6 +54,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             val client = OkHttpClient.Builder()
                 .addInterceptor(authInterceptor)
+                .readTimeout(60, TimeUnit.SECONDS)
                 .build()
 
             api = Retrofit.Builder()
