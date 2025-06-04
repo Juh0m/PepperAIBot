@@ -29,7 +29,6 @@ import java.io.*
 import java.nio.*
 import java.util.zip.ZipInputStream
 import kotlinx.coroutines.*
-import okhttp3.*
 import org.json.JSONObject
 import org.vosk.*
 import retrofit2.Call
@@ -39,12 +38,12 @@ import retrofit2.http.Headers
 class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     // Tag for logging
-    private val TAG = "PepperAI"
+    private val tag = "PepperAI"
 
     // Audio stuff
-    private val SAMPLE_RATE = 16000
-    private val BUFFER_SIZE_ELEMENTS = 65536
-    private val RECORD_AUDIO_REQUEST_CODE = 101
+    private val sampleRate = 16000
+    private val bufferSizeElements = 65536
+    private val recordAudioRequestCode = 101
 
     // qiContext needed for making Pepper talk, needs focus
     private var qiContext: QiContext? = null
@@ -85,7 +84,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 ActivityCompat.requestPermissions(
                     this,
                     arrayOf(Manifest.permission.RECORD_AUDIO),
-                    RECORD_AUDIO_REQUEST_CODE
+                    recordAudioRequestCode
                 )
             }
         }
@@ -136,7 +135,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 }
                 viewModel.updateListeningText("Ready for speech recognition")
             } catch (e: IOException) {
-                Log.e(TAG, "Model init error", e)
+                Log.e(tag, "Model init error", e)
                 viewModel.updateListeningText("Model error: ${e.message}")
             }
         }
@@ -171,20 +170,20 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         if (!isModelInitialized) return
 
         try {
-            recognizer = Recognizer(model, SAMPLE_RATE.toFloat())
+            recognizer = Recognizer(model, sampleRate.toFloat())
             audioRecord = AudioRecord(
                 MediaRecorder.AudioSource.MIC,
-                SAMPLE_RATE,
+                sampleRate,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
-                AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+                AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             )
 
             audioRecord?.startRecording()
             isRecording = true
             viewModel.updateListeningText("Listening...")
 
-            val buffer = ShortArray(BUFFER_SIZE_ELEMENTS)
+            val buffer = ShortArray(bufferSizeElements)
             recordingJob = scope.launch(Dispatchers.IO) {
                 while (isRecording) {
                     val read = audioRecord?.read(buffer, 0, buffer.size) ?: -1
@@ -208,7 +207,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Recording failed", e)
+            Log.e(tag, "Recording failed", e)
             viewModel.updateListeningText("Recording error: ${e.message}")
         }
     }
@@ -234,7 +233,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                         if (response.isSuccessful) {
                             val reply = response.body()?.choices?.firstOrNull()?.message?.content
                             conversation.add(Message("assistant", reply.toString()))
-                            Log.e(TAG, "Full AI Reply: $reply")
+                            Log.e(tag, "Full AI Reply: $reply")
 
                             if (reply != null) {
                                 viewModel.updateAIResponse(reply)
@@ -243,7 +242,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                         } else {
                             // Connection to API was successful but response not OK
                             conversation.add(Message("assistant", "AI was unable to respond."))
-                            Log.e(TAG, "Error: ${response.code()} ${response.errorBody()?.string()}")
+                            Log.e(tag, "Error: ${response.code()} ${response.errorBody()?.string()}")
                             viewModel.updateAIResponse("API responded with error ${response.code()}. Please check your API key and AI model.")
                         }
                     }
@@ -305,7 +304,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     }
 
 
-    // PEPPER QISDK STUFF
+    // PEPPER QiSDK STUFF
     override fun onDestroy() {
         super.onDestroy()
         stopRecording()
@@ -314,16 +313,16 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     }
 
     override fun onRobotFocusGained(qiContext: QiContext) {
-        Log.d(TAG, "Robot focus gained")
+        Log.d(tag, "Robot focus gained")
         this.qiContext = qiContext
     }
 
     override fun onRobotFocusLost() {
-        Log.d(TAG, "Robot focus lost")
+        Log.d(tag, "Robot focus lost")
     }
 
     override fun onRobotFocusRefused(reason: String) {
-        Log.e(TAG, "Robot focus refused: $reason")
+        Log.e(tag, "Robot focus refused: $reason")
     }
 
     private fun robotSay(text: String) {
