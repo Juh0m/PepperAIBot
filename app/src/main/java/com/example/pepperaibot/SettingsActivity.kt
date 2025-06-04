@@ -31,6 +31,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.text.isDigitsOnly
 import com.example.pepperaibot.ui.theme.PepperAIBotTheme
+import androidx.core.content.edit
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,7 +94,7 @@ fun SettingsScreen() {
             value = apiUrl,
             onValueChange = {
                 apiUrl = it
-                sharedPreferences.edit().putString("api_url", it).apply()
+                sharedPreferences.edit { putString("api_url", it) }
             },
             label = { Text("API URL") },
             modifier = Modifier.fillMaxWidth()
@@ -107,7 +108,7 @@ fun SettingsScreen() {
             value = apiKey,
             onValueChange = {
                 apiKey = it
-                sharedPreferences.edit().putString("api_key", it).apply()
+                sharedPreferences.edit { putString("api_key", it) }
             },
             label = { Text("API KEY") },
             modifier = Modifier.fillMaxWidth()
@@ -121,7 +122,7 @@ fun SettingsScreen() {
             value = aiModel,
             onValueChange = {
                 aiModel = it
-                sharedPreferences.edit().putString("ai_model", it).apply()
+                sharedPreferences.edit { putString("ai_model", it) }
             },
             label = { Text("AI Model") },
             modifier = Modifier.fillMaxWidth()
@@ -137,7 +138,7 @@ fun SettingsScreen() {
                 checked = voiceRecognition,
                 onCheckedChange = {
                     voiceRecognition = it
-                    sharedPreferences.edit().putBoolean("voice_recognition", it).apply()
+                    sharedPreferences.edit { putBoolean("voice_recognition", it) }
                 }
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -153,7 +154,7 @@ fun SettingsScreen() {
                 value = voiceRecognitionApiUrl,
                 onValueChange = {
                     voiceRecognitionApiUrl = it
-                    sharedPreferences.edit().putString("voice_recognition_api_url", it).apply()
+                    sharedPreferences.edit { putString("voice_recognition_api_url", it) }
                 },
                 label = { Text("Voice recognition API URL") },
                 modifier = Modifier.fillMaxWidth()
@@ -166,7 +167,7 @@ fun SettingsScreen() {
                 value = voiceRecognitionApiKey,
                 onValueChange = {
                     voiceRecognitionApiKey = it
-                    sharedPreferences.edit().putString("voice_recognition_api_key", it).apply()
+                    sharedPreferences.edit { putString("voice_recognition_api_key", it) }
                 },
                 label = { Text("Voice recognition API Key") },
                 modifier = Modifier.fillMaxWidth()
@@ -179,7 +180,7 @@ fun SettingsScreen() {
                 value = voiceRecognitionModel,
                 onValueChange = {
                     voiceRecognitionModel = it
-                    sharedPreferences.edit().putString("voice_recognition_model", it).apply()
+                    sharedPreferences.edit { putString("voice_recognition_model", it) }
                 },
                 label = { Text("Voice Recognition Model") },
                 modifier = Modifier.fillMaxWidth()
@@ -196,7 +197,7 @@ fun SettingsScreen() {
                 if(it.isDigitsOnly()) {
                     readTimeout = it
                     val timeout = it.toLongOrNull() ?: 30L
-                    sharedPreferences.edit().putLong("api_read_timeout", timeout).apply()
+                    sharedPreferences.edit { putLong("api_read_timeout", timeout) }
                 }
             },
             label = { Text("API wait timeout (seconds)") },

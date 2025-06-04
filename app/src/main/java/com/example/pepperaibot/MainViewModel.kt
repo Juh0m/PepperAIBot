@@ -4,26 +4,19 @@ import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
 import com.example.pepperaibot.MainActivity.AIApi
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
-import java.util.function.ToLongFunction
+
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     var isListening = mutableStateOf(false)
     var userInput = mutableStateOf("")
     var aiResponse = mutableStateOf("")
     var listeningText = mutableStateOf("")
-
-    private val sharedPrefs = getApplication<Application>().getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-
-    val apiUrl: String
-        get() = sharedPrefs.getString("api_url", "") ?: ""
-
 
     var onStartListening: (() -> Unit)? = null
     var onStopListening: (() -> Unit)? = null
@@ -71,10 +64,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         fun getApi(): AIApi {
-            if (!MainViewModel.RetrofitClient.isInitialized) {
+            if (!isInitialized) {
                 throw IllegalStateException("RetrofitClient is not initialized. Call setup(context) first.")
             }
-            return MainViewModel.RetrofitClient.api
+            return api
         }
     }
 
