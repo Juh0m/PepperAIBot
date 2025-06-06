@@ -22,8 +22,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import com.aldebaran.qi.sdk.*
 import com.aldebaran.qi.sdk.builder.SayBuilder
+import com.aldebaran.qi.sdk.`object`.locale.Language
+import com.aldebaran.qi.sdk.`object`.locale.Locale
+import com.aldebaran.qi.sdk.`object`.locale.Region
 import com.example.pepperaibot.ui.theme.PepperAIBotTheme
 import java.io.*
 import java.nio.*
@@ -104,6 +108,11 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
             Log.e("QiSDK", "Failed to register QiSDK due to SecurityException", e)
         }
         checkPermissions()
+    }
+    override fun onResume() {
+        super.onResume()
+        retrofitClient = viewModel.getRetrofitClient()
+        retrofitClient.setup(applicationContext)
     }
 
     // Check microphone permissions
@@ -222,7 +231,6 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 viewModel.toggleListening()
                 // Get Pepper's response from specified API
                 // Only works with OpenAI or similar APIs
-                conversation.add(Message("user", text))
                 val request = ChatRequest(
                     model = retrofitClient.aiModel,
                     messages = conversation
@@ -234,6 +242,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                             val reply = response.body()?.choices?.firstOrNull()?.message?.content
                             conversation.add(Message("assistant", reply.toString()))
                             Log.e(tag, "Full AI Reply: $reply")
+                            Log.e(tag, response.body().toString())
 
                             if (reply != null) {
                                 viewModel.updateAIResponse(reply)
@@ -327,10 +336,12 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     private fun robotSay(text: String) {
         qiContext?.let { context ->
+            val locale: Locale = Locale(Language.ENGLISH, Region.UNITED_STATES);
             CoroutineScope(Dispatchers.Default).launch {
                 try {
                     SayBuilder.with(context)
                         .withText(text)
+                        .withLocale(locale)
                         .build()
                         .run()
                 } catch (e: Exception) {
