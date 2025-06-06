@@ -2,6 +2,7 @@ package com.example.pepperaibot
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import com.example.pepperaibot.MainActivity.AIApi
@@ -9,6 +10,7 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 
@@ -53,12 +55,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 .readTimeout(readTimeout, TimeUnit.SECONDS)
                 .build()
 
-            api = Retrofit.Builder()
-                .baseUrl(apiUrl)
-                .addConverterFactory(GsonConverterFactory.create())
-                .client(client)
-                .build()
-                .create(AIApi::class.java)
+            try {
+                api = Retrofit.Builder()
+                    .baseUrl(apiUrl)
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .client(client)
+                    .build()
+                    .create(AIApi::class.java)
+            }
+            catch (e: Exception) {
+                api = Retrofit.Builder()
+                    .baseUrl("http://google.com/")
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .client(client)
+                    .build()
+                    .create(AIApi::class.java)
+                Log.e("RetrofitClient", "Building api failed (check url?), $e")
+            }
 
             isInitialized = true
         }
