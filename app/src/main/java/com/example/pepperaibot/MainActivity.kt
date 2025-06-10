@@ -323,7 +323,9 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
             if(isFinal) {
                 conversation.add(Message("user", text))
                 viewModel.updateUserText(text, true)
-                viewModel.toggleListening()
+                if(sharedPrefs.getBoolean("voice_recognition", false) == false) {
+                    viewModel.toggleListening()
+                }
                 // Get Pepper's response from specified API
                 // Only works with OpenAI or similar APIs
                 val request = ChatRequest(
