@@ -312,6 +312,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     }
 
     private fun processResult(result: String, isFinal: Boolean) {
+        Log.d(tag, "RESULT: ${result}")
         val jsonObject = JSONObject(result)
         val text = if (isFinal) jsonObject.optString("text", "") else jsonObject.optString("partial", "")
         if (text.isNotEmpty()) {
@@ -403,7 +404,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     }
     interface FileUploadService {
         @Multipart
-        @POST("upload-audio")
+        @POST("transcribe")
         fun uploadFile(
             @Part filePart: MultipartBody.Part,
             @Part("description") description: RequestBody
@@ -443,14 +444,19 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
         service.uploadFile(filePart, description)
             .enqueue(object : retrofit2.Callback<ResponseBody> {
-                override fun onResponse(
-                    call: Call<ResponseBody>,
-                    response: Response<ResponseBody>
-                )
+                override fun onResponse(call: Call<ResponseBody>, response: retrofit2.Response<ResponseBody>)
                 {
                     if (response.isSuccessful) {
-                        Log.d("Upload", "Success! ${response.body()?.string()}")
+                        val responseText = response.body()?.string()
+                        Log.d("Upload", "Success! ${responseText}")
                         Log.d(tag, response.toString())
+
+                        if (responseText != null) {
+                            processResult(responseText, true)
+                        } else {
+                            viewModel.updateListeningText("Speech-to-text API returned no response or it was empty")
+                        }
+
                     } else {
                         Log.e("Upload", "Server error: ${response.code()} ${response.errorBody()?.string()}")
                     }
