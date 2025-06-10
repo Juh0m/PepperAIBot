@@ -67,11 +67,15 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     private var isRecordingFile = false
     private var mediaRecorder: MediaRecorder? = null
 
+    private lateinit var retrofit : Retrofit
+    private lateinit var service : FileUploadService
+    private lateinit var okHttpClient : OkHttpClient
     // qiContext needed for making Pepper talk, needs focus
     private var qiContext: QiContext? = null
     private val scope = CoroutineScope(Dispatchers.Main)
     private lateinit var model: Model
 
+    private lateinit var sharedPrefs : SharedPreferences
     private var recognizer: Recognizer? = null
     private var audioRecord: AudioRecord? = null
     private var recordingJob: Job? = null
@@ -97,15 +101,15 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Change to global and lateinit?
-        val sharedPrefs = applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        val localVoiceRecognition = sharedPrefs.getBoolean("voice_recognition", false)
+        sharedPrefs = applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
         retrofitClient = viewModel.getRetrofitClient()
         retrofitClient.setup(applicationContext)
+        setupSTTClients()
+        val localVoiceRecognition = sharedPrefs.getBoolean("voice_recognition", false)
         viewModel.onStartListening = {
             if (localVoiceRecognition && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
                 startFileRecording(applicationContext)
-            } else if(ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            } else if(ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
                 startRecording()
             } else {
                 ActivityCompat.requestPermissions(
@@ -421,20 +425,23 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     fun createPartFromString(value: String): RequestBody =
         RequestBody.create("text/plain".toMediaTypeOrNull(), value)
 
-    val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
+    fun setupSTTClients()
+    {
+        okHttpClient = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
 
-    // Retrofit
-    val retrofit = Retrofit.Builder()
-        .baseUrl("http://192.168.0.131:5000/")
-        .client(okHttpClient)
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
+        // Retrofit
+        retrofit = Retrofit.Builder()
+            .baseUrl(sharedPrefs.getString("voice_recognition_api_url", "http://u.rl/")?: "")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
 
-    val service = retrofit.create(FileUploadService::class.java)
+        service = retrofit.create(FileUploadService::class.java)
+    }
 
     fun getLocalSTTResponse()
     {
