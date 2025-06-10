@@ -4,6 +4,7 @@ import android.content.*
 import android.content.pm.PackageManager
 import android.media.*
 import android.os.Bundle
+import android.os.Environment
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -28,6 +29,7 @@ import com.aldebaran.qi.sdk.builder.SayBuilder
 import com.aldebaran.qi.sdk.`object`.locale.Language
 import com.aldebaran.qi.sdk.`object`.locale.Locale
 import com.aldebaran.qi.sdk.`object`.locale.Region
+import com.example.pepperaibot.MainViewModel.RetrofitClient.aiModel
 import com.example.pepperaibot.ui.theme.PepperAIBotTheme
 import java.io.*
 import java.nio.*
@@ -48,6 +50,10 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     private val sampleRate = 16000
     private val bufferSizeElements = 65536
     private val recordAudioRequestCode = 101
+
+    private var outputFilePath: String? = null
+    private var isRecordingFile = false
+    private var mediaRecorder: MediaRecorder? = null
 
     // qiContext needed for making Pepper talk, needs focus
     private var qiContext: QiContext? = null
@@ -79,21 +85,37 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Change to global and lateinit?
+        val sharedPrefs = applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+        val localVoiceRecognition = sharedPrefs.getBoolean("voice_recognition", false)
         retrofitClient = viewModel.getRetrofitClient()
         retrofitClient.setup(applicationContext)
         viewModel.onStartListening = {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            if (localVoiceRecognition && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                startFileRecording(applicationContext)
+            } else if(ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                 startRecording()
             } else {
                 ActivityCompat.requestPermissions(
                     this,
-                    arrayOf(Manifest.permission.RECORD_AUDIO),
+                    arrayOf(
+                        Manifest.permission.RECORD_AUDIO,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    ),
                     recordAudioRequestCode
+
                 )
             }
         }
 
-        viewModel.onStopListening = { stopRecording() }
+        viewModel.onStopListening = {
+            if(localVoiceRecognition) {
+                stopFileRecording()
+            }
+            else {
+                stopRecording()
+            }
+        }
         setContent {
             PepperAIBotTheme {
                 MainScreen(viewModel = viewModel) {
@@ -218,6 +240,60 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         } catch (e: Exception) {
             Log.e(tag, "Recording failed", e)
             viewModel.updateListeningText("Recording error: ${e.message}")
+        }
+    }
+    @RequiresPermission(allOf = [Manifest.permission.RECORD_AUDIO, Manifest.permission.WRITE_EXTERNAL_STORAGE])
+    fun startFileRecording(context: Context) {
+        if (isRecordingFile) return
+
+        try {
+            // Prepare output file
+            val dir = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC)
+            if (dir == null) throw IOException("Cannot access external files dir")
+            val filename = "audio.aac"
+            outputFilePath = File(dir, filename).absolutePath
+
+            // Configure MediaRecorder
+            mediaRecorder = MediaRecorder().apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                // Not sure what these should be set to
+                setAudioEncodingBitRate(128_000)
+                setAudioSamplingRate(44_100)
+                setOutputFile(outputFilePath)
+                prepare()
+                start()
+            }
+
+            isRecordingFile = true
+            viewModel.updateListeningText("Recording to file…")
+        } catch (e: Exception) {
+            Log.e(tag, "startFileRecording failed", e)
+            viewModel.updateListeningText("Recording error: ${e.localizedMessage}")
+            // Clean up partial recorder
+            mediaRecorder?.release()
+            mediaRecorder = null
+            isRecordingFile = false
+        }
+    }
+
+    fun stopFileRecording() {
+        if (!isRecordingFile || mediaRecorder == null) return
+
+        try {
+            mediaRecorder!!.apply {
+                stop()
+                reset()
+                release()
+            }
+            viewModel.updateListeningText("Saved: $outputFilePath")
+        } catch (e: Exception) {
+            Log.e(tag, "stopFileRecording failed", e)
+            viewModel.updateListeningText("Stop error: ${e.localizedMessage}")
+        } finally {
+            mediaRecorder = null
+            isRecordingFile = false
         }
     }
 
@@ -387,7 +463,12 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     FloatingActionButton(
                         onClick = {
+                            val sharedPrefs = applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
                             if (!isListening) {
+                                viewModel.toggleListening()
+                            }
+                            // Stopping mid-recording is OK for local voice recognition
+                            else if(sharedPrefs.getBoolean("voice_recognition", false)) {
                                 viewModel.toggleListening()
                             }
                         },
