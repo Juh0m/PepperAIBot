@@ -1,11 +1,8 @@
 package com.example.pepperaibot
-
-import android.Manifest
-import android.content.Intent
+import android.*
+import android.content.*
 import android.content.pm.PackageManager
-import android.media.AudioFormat
-import android.media.AudioRecord
-import android.media.MediaRecorder
+import android.media.*
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -18,9 +15,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -29,30 +25,21 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import com.aldebaran.qi.sdk.QiContext
-import com.aldebaran.qi.sdk.QiSDK
+import com.aldebaran.qi.sdk.*
 import com.aldebaran.qi.sdk.builder.SayBuilder
 import com.aldebaran.qi.sdk.`object`.locale.Language
 import com.aldebaran.qi.sdk.`object`.locale.Locale
 import com.aldebaran.qi.sdk.`object`.locale.Region
-import com.aldebaran.qi.sdk.RobotLifecycleCallbacks
 import com.example.pepperaibot.ui.theme.PepperAIBotTheme
+import java.io.*
+import java.nio.*
+import java.util.zip.ZipInputStream
 import kotlinx.coroutines.*
 import org.json.JSONObject
-import org.vosk.LibVosk
-import org.vosk.LogLevel
-import org.vosk.Model
-import org.vosk.Recognizer
+import org.vosk.*
 import retrofit2.Call
-import retrofit2.http.Body
+import retrofit2.http.*
 import retrofit2.http.Headers
-import retrofit2.http.POST
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.util.zip.ZipInputStream
 
 class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
@@ -64,7 +51,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     private val bufferSizeElements = 65536
     private val recordAudioRequestCode = 101
 
-    // qiContext needed for making Pepper talk
+    // qiContext needed for making Pepper talk, needs focus
     private var qiContext: QiContext? = null
     private val scope = CoroutineScope(Dispatchers.Main)
     private lateinit var model: Model
@@ -76,7 +63,10 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     private var isModelInitialized = false
 
     private val conversation = mutableListOf<Message>()
+
     private val viewModel by viewModels<MainViewModel>()
+
+    // Retrofit client for HTTP requests
     private lateinit var retrofitClient : MainViewModel.RetrofitClient
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -104,8 +94,8 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 )
             }
         }
-        viewModel.onStopListening = { stopRecording() }
 
+        viewModel.onStopListening = { stopRecording() }
         setContent {
             PepperAIBotTheme {
                 MainScreen(viewModel = viewModel) {
@@ -121,13 +111,13 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         }
         checkPermissions()
     }
-
     override fun onResume() {
         super.onResume()
         retrofitClient = viewModel.getRetrofitClient()
         retrofitClient.setup(applicationContext)
     }
 
+    // Check microphone permissions
     private fun checkPermissions() {
         val permissions = mutableListOf<String>()
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -189,6 +179,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     private fun startRecording() {
         if (!isModelInitialized) return
+
         try {
             recognizer = Recognizer(model, sampleRate.toFloat())
             audioRecord = AudioRecord(
@@ -198,6 +189,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 AudioFormat.ENCODING_PCM_16BIT,
                 AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             )
+
             audioRecord?.startRecording()
             isRecording = true
             viewModel.updateListeningText("Listening...")
@@ -210,6 +202,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                         val byteBuffer = ByteBuffer.allocate(read * 2).order(ByteOrder.LITTLE_ENDIAN)
                         for (i in 0 until read) byteBuffer.putShort(buffer[i])
                         val data = byteBuffer.array()
+
                         if (recognizer?.acceptWaveForm(data, data.size) == true) {
                             val result = recognizer?.result ?: ""
                             withContext(Dispatchers.Main) {
@@ -234,39 +227,48 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         val jsonObject = JSONObject(result)
         val text = if (isFinal) jsonObject.optString("text", "") else jsonObject.optString("partial", "")
         if (text.isNotEmpty()) {
-            if (isFinal) {
+            if(isFinal) {
                 conversation.add(Message("user", text))
                 viewModel.updateUserText(text, true)
                 viewModel.toggleListening()
-                sendChatRequest()
-            } else {
+                // Get Pepper's response from specified API
+                // Only works with OpenAI or similar APIs
+                val request = ChatRequest(
+                    model = retrofitClient.aiModel,
+                    messages = conversation
+                )
+                val api = retrofitClient.getApi()
+                api.getChatCompletion(request).enqueue(object : retrofit2.Callback<ChatResponse> {
+                    override fun onResponse(call: Call<ChatResponse>, response: retrofit2.Response<ChatResponse>) {
+                        if (response.isSuccessful) {
+                            val reply = response.body()?.choices?.firstOrNull()?.message?.content
+                            conversation.add(Message("assistant", reply.toString()))
+                            Log.e(tag, "Full AI Reply: $reply")
+                            Log.e(tag, response.body().toString())
+
+                            if (reply != null) {
+                                viewModel.updateAIResponse(reply)
+                                robotSay(reply)
+                            }
+                        } else {
+                            // Connection to API was successful but response not OK
+                            conversation.add(Message("assistant", "AI was unable to respond."))
+                            Log.e(tag, "Error: ${response.code()} ${response.errorBody()?.string()}")
+                            viewModel.updateAIResponse("API responded with error ${response.code()}. Please check your API key and AI model.")
+                        }
+                    }
+
+                    // Failure to connect to API.
+                    override fun onFailure(call: Call<ChatResponse>, t: Throwable) {
+                        t.printStackTrace()
+                        viewModel.updateAIResponse("Failed to access API. Please check your API URL.")
+                    }
+                })
+            }
+            else {
                 viewModel.updateUserText("Converting speech to text in progress: $text", false)
             }
         }
-    }
-
-    private fun sendChatRequest() {
-        val request = ChatRequest(
-            model = retrofitClient.aiModel,
-            messages = conversation
-        )
-        retrofitClient.getApi().getChatCompletion(request).enqueue(object : retrofit2.Callback<ChatResponse> {
-            override fun onResponse(call: Call<ChatResponse>, response: retrofit2.Response<ChatResponse>) {
-                if (response.isSuccessful) {
-                    val reply = response.body()?.choices?.firstOrNull()?.message?.content
-                    conversation.add(Message("assistant", reply.toString()))
-                    viewModel.updateAIResponse(reply!!)
-                    robotSay(reply)
-                } else {
-                    conversation.add(Message("assistant", "AI was unable to respond."))
-                    viewModel.updateAIResponse("API responded with error ${response.code()}.")
-                }
-            }
-            override fun onFailure(call: Call<ChatResponse>, t: Throwable) {
-                t.printStackTrace()
-                viewModel.updateAIResponse("Failed to access API. Please check your API URL.")
-            }
-        })
     }
 
     private fun stopRecording() {
@@ -281,6 +283,39 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         viewModel.updateListeningText("Stopped")
     }
 
+    // HTTP REQUESTS
+    // Request
+    data class Message(
+        val role: String,
+        val content: String
+    )
+
+    data class ChatRequest(
+        val model: String,
+        val messages: List<Message>
+    )
+
+    // Response
+    data class ChatResponse(
+        val choices: List<Choice>
+    )
+
+    data class Choice(
+        val index: Int,
+        val message: Message,
+        val finish_reason: String
+    )
+
+    interface AIApi {
+        @Headers("Content-Type: application/json")
+        @POST("v1/chat/completions")
+        fun getChatCompletion(
+            @Body request: ChatRequest
+        ): Call<ChatResponse>
+    }
+
+
+    // PEPPER QiSDK STUFF
     override fun onDestroy() {
         super.onDestroy()
         stopRecording()
@@ -303,7 +338,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     private fun robotSay(text: String) {
         qiContext?.let { context ->
-            val locale = Locale(Language.ENGLISH, Region.UNITED_STATES)
+            val locale: Locale = Locale(Language.ENGLISH, Region.UNITED_STATES);
             CoroutineScope(Dispatchers.Default).launch {
                 try {
                     SayBuilder.with(context)
@@ -324,7 +359,6 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     fun MainScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
         val scrollState = rememberScrollState()
         var isListening = viewModel.isListening.value
-
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -341,7 +375,8 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(16.dp)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(
                     modifier = Modifier
@@ -352,47 +387,24 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(viewModel.listeningText.value, color = Color.DarkGray)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        viewModel.userInput.value,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFE0F7FA))
-                            .padding(8.dp)
-                    )
+                    Text(viewModel.userInput.value, modifier = Modifier.fillMaxWidth().background(Color(0xFFE0F7FA)).padding(8.dp))
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        viewModel.aiResponse.value,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFF1F8E9))
-                            .padding(8.dp)
-                    )
+                    Text(viewModel.aiResponse.value, modifier = Modifier.fillMaxWidth().background(Color(0xFFF1F8E9)).padding(8.dp))
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     FloatingActionButton(
                         onClick = {
-                            if (!isListening) viewModel.toggleListening()
+                            if (!isListening) {
+                                viewModel.toggleListening()
+                            }
                         },
-                        containerColor = if (isListening) Color(0xFFD32F2F) else Color(0xFF6200EE)
-                    ) {
+                        containerColor = if (viewModel.isListening.value) Color(0xFFD32F2F) else Color(0xFF6200EE),
+
+                        ) {
                         Icon(Icons.Filled.Mic, contentDescription = "Mic", tint = Color.White)
                     }
                 }
             }
         }
-    }
-
-    // Data classes and API interface
-    data class Message(val role: String, val content: String)
-    data class ChatRequest(val model: String, val messages: List<Message>)
-    data class ChatResponse(val choices: List<Choice>)
-    data class Choice(val index: Int, val message: Message, val finish_reason: String)
-    interface AIApi {
-        @Headers("Content-Type: application/json")
-        @POST("v1/chat/completions")
-        fun getChatCompletion(@Body request: ChatRequest): Call<ChatResponse>
     }
 }
