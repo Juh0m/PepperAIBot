@@ -4,6 +4,7 @@ import android.content.*
 import android.content.pm.PackageManager
 import android.media.*
 import android.os.Bundle
+import android.os.Environment
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -30,16 +31,29 @@ import com.aldebaran.qi.sdk.builder.SayBuilder
 import com.aldebaran.qi.sdk.`object`.locale.Language
 import com.aldebaran.qi.sdk.`object`.locale.Locale
 import com.aldebaran.qi.sdk.`object`.locale.Region
+import com.example.pepperaibot.MainViewModel.RetrofitClient.aiModel
 import com.example.pepperaibot.ui.theme.PepperAIBotTheme
 import java.io.*
+import java.io.File
 import java.nio.*
 import java.util.zip.ZipInputStream
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.*
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import okhttp3.ResponseBody
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.OkHttpClient
+import okhttp3.Callback
 import org.json.JSONObject
 import org.vosk.*
+import retrofit2.Retrofit
 import retrofit2.Call
+import retrofit2.Response
 import retrofit2.http.*
 import retrofit2.http.Headers
+import retrofit2.converter.gson.GsonConverterFactory
 
 class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
@@ -51,11 +65,19 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     private val bufferSizeElements = 65536
     private val recordAudioRequestCode = 101
 
+    private var outputFilePath: String = ""
+    private var isRecordingFile = false
+    private var mediaRecorder: MediaRecorder? = null
+
+    private lateinit var retrofit : Retrofit
+    private lateinit var service : FileUploadService
+    private lateinit var okHttpClient : OkHttpClient
     // qiContext needed for making Pepper talk, needs focus
     private var qiContext: QiContext? = null
     private val scope = CoroutineScope(Dispatchers.Main)
     private lateinit var model: Model
 
+    private lateinit var sharedPrefs : SharedPreferences
     private var recognizer: Recognizer? = null
     private var audioRecord: AudioRecord? = null
     private var recordingJob: Job? = null
@@ -81,21 +103,37 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        sharedPrefs = applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
         retrofitClient = viewModel.getRetrofitClient()
         retrofitClient.setup(applicationContext)
+        setupSTTClients()
+        val localVoiceRecognition = sharedPrefs.getBoolean("voice_recognition", false)
         viewModel.onStartListening = {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            if (localVoiceRecognition && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                startFileRecording(applicationContext)
+            } else if(ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
                 startRecording()
             } else {
                 ActivityCompat.requestPermissions(
                     this,
-                    arrayOf(Manifest.permission.RECORD_AUDIO),
+                    arrayOf(
+                        Manifest.permission.RECORD_AUDIO,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                    ),
                     recordAudioRequestCode
+
                 )
             }
         }
 
-        viewModel.onStopListening = { stopRecording() }
+        viewModel.onStopListening = {
+            if(localVoiceRecognition) {
+                stopFileRecording()
+            }
+            else {
+                stopRecording()
+            }
+        }
         setContent {
             PepperAIBotTheme {
                 MainScreen(viewModel = viewModel) {
@@ -222,15 +260,74 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
             viewModel.updateListeningText("Recording error: ${e.message}")
         }
     }
+    @RequiresPermission(allOf = [Manifest.permission.RECORD_AUDIO, Manifest.permission.WRITE_EXTERNAL_STORAGE])
+    fun startFileRecording(context: Context) {
+        if (isRecordingFile) return
+
+        try {
+            // Prepare output file
+            val dir = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC)
+            if (dir == null) throw IOException("Cannot access external files dir")
+            val filename = "audio.aac"
+            outputFilePath = File(dir, filename).absolutePath
+
+            // Configure MediaRecorder
+            mediaRecorder = MediaRecorder().apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                // Not sure what these should be set to
+                setAudioEncodingBitRate(128_000)
+                setAudioSamplingRate(44_100)
+                setOutputFile(outputFilePath)
+                prepare()
+                start()
+            }
+
+            isRecordingFile = true
+            viewModel.updateListeningText("Recording to file…")
+        } catch (e: Exception) {
+            Log.e(tag, "startFileRecording failed", e)
+            viewModel.updateListeningText("Recording error: ${e.localizedMessage}")
+            // Clean up partial recorder
+            mediaRecorder?.release()
+            mediaRecorder = null
+            isRecordingFile = false
+        }
+    }
+
+    fun stopFileRecording() {
+        if (!isRecordingFile || mediaRecorder == null) return
+
+        try {
+            mediaRecorder!!.apply {
+                stop()
+                reset()
+                release()
+            }
+            viewModel.updateListeningText("File recording stopped, waiting for speech-to-text conversion")
+            getLocalSTTResponse()
+
+        } catch (e: Exception) {
+            Log.e(tag, "stopFileRecording failed", e)
+            viewModel.updateListeningText("Stop error: ${e.localizedMessage}")
+        } finally {
+            mediaRecorder = null
+            isRecordingFile = false
+        }
+    }
 
     private fun processResult(result: String, isFinal: Boolean) {
+        Log.d(tag, "RESULT: ${result}")
         val jsonObject = JSONObject(result)
         val text = if (isFinal) jsonObject.optString("text", "") else jsonObject.optString("partial", "")
         if (text.isNotEmpty()) {
             if(isFinal) {
                 conversation.add(Message("user", text))
                 viewModel.updateUserText(text, true)
-                viewModel.toggleListening()
+                if(sharedPrefs.getBoolean("voice_recognition", false) == false) {
+                    viewModel.toggleListening()
+                }
                 // Get Pepper's response from specified API
                 // Only works with OpenAI or similar APIs
                 val request = ChatRequest(
@@ -313,7 +410,75 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
             @Body request: ChatRequest
         ): Call<ChatResponse>
     }
+    interface FileUploadService {
+        @Multipart
+        @POST("transcribe")
+        fun uploadFile(
+            @Part filePart: MultipartBody.Part,
+            @Part("description") description: RequestBody
+        ): Call<ResponseBody>
+    }
 
+    fun prepareFilePart(partName: String, file: File): MultipartBody.Part {
+        val mimeType = "audio/aac"
+        val requestFile = file
+            .asRequestBody(mimeType.toMediaTypeOrNull())
+        return MultipartBody.Part.createFormData(partName, file.name, requestFile)
+    }
+
+    fun createPartFromString(value: String): RequestBody =
+        RequestBody.create("text/plain".toMediaTypeOrNull(), value)
+
+    fun setupSTTClients()
+    {
+        okHttpClient = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(300, TimeUnit.SECONDS)
+            .build()
+
+        // Retrofit
+        retrofit = Retrofit.Builder()
+            .baseUrl(sharedPrefs.getString("voice_recognition_api_url", "http://u.rl/")?: "")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        service = retrofit.create(FileUploadService::class.java)
+    }
+
+    fun getLocalSTTResponse()
+    {
+        val file = File(outputFilePath)
+        val filePart = prepareFilePart("audio", file)
+        val description = createPartFromString("file desc")
+
+        service.uploadFile(filePart, description)
+            .enqueue(object : retrofit2.Callback<ResponseBody> {
+                override fun onResponse(call: Call<ResponseBody>, response: retrofit2.Response<ResponseBody>)
+                {
+                    if (response.isSuccessful) {
+                        val responseText = response.body()?.string()
+                        Log.d("Upload", "Success! ${responseText}")
+                        Log.d(tag, response.toString())
+
+                        if (responseText != null) {
+                            processResult(responseText, true)
+                        } else {
+                            viewModel.updateListeningText("Speech-to-text API returned no response or it was empty")
+                        }
+
+                    } else {
+                        Log.e("Upload", "Server error: ${response.code()} ${response.errorBody()?.string()}")
+                    }
+                }
+
+
+                override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                    Log.e("Upload", "Failed: ${t.localizedMessage}")
+                }
+            })
+    }
 
     // PEPPER QiSDK STUFF
     override fun onDestroy() {
@@ -394,7 +559,12 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     FloatingActionButton(
                         onClick = {
+                            val sharedPrefs = applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
                             if (!isListening) {
+                                viewModel.toggleListening()
+                            }
+                            // Stopping mid-recording is OK for local voice recognition
+                            else if(sharedPrefs.getBoolean("voice_recognition", false)) {
                                 viewModel.toggleListening()
                             }
                         },

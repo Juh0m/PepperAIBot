@@ -24,7 +24,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var onStopListening: (() -> Unit)? = null
 
     // Retrofit Client
-
+    // For HTTP Request to AI API
     object RetrofitClient {
         private lateinit var apiKey: String
         private lateinit var apiUrl: String
