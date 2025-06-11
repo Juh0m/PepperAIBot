@@ -97,7 +97,7 @@ fun SettingsScreen() {
                 sharedPreferences.edit { putString("api_url", it) }
             },
             label = { Text("API URL") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
 
         // API Key
