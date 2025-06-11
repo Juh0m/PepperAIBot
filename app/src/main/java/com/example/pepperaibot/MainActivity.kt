@@ -432,7 +432,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         okHttpClient = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(300, TimeUnit.SECONDS)
             .build()
 
         // Retrofit
