@@ -20,6 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
@@ -368,6 +370,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 )
             }
         ) { paddingValues ->
+            val scrollState = rememberScrollState()
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -376,6 +379,12 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
+                    var modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                        .padding(paddingValues)
+                        .padding(16.dp)
+                    var verticalArrangement = Arrangement.SpaceBetween
                     Text("Press the button to talk with Pepper.", style = MaterialTheme.typography.bodyLarge)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(viewModel.listeningText.value, color = Color.DarkGray)
