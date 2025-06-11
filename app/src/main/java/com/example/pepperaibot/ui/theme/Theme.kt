@@ -35,7 +35,8 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun PepperAIBotTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    // Force dark mode until someone fixes the UI to work well with both
+    darkTheme: Boolean = true, //isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit

@@ -26,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -83,12 +84,12 @@ fun SettingsScreen() {
             .padding(16.dp),
         verticalArrangement = Arrangement.Top
     ) {
-        Text("Settings", style = MaterialTheme.typography.headlineSmall)
-        Text("Changes to settings require restarting the app.", style = MaterialTheme.typography.bodyLarge)
+        Text("Settings", color = Color.White)
+        Text("Changes to settings require restarting the app.", color = Color.White)
         Spacer(modifier = Modifier.height(16.dp))
 
         // API URL
-        Text("Enter the API URL:", style = MaterialTheme.typography.bodyLarge)
+        Text("Enter the API URL:", color = Color.White)
         Spacer(modifier = Modifier.height(8.dp))
         TextField(
             value = apiUrl,
@@ -102,7 +103,7 @@ fun SettingsScreen() {
 
         // API Key
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Enter the API key:", style = MaterialTheme.typography.bodyLarge)
+        Text("Enter the API key:", color = Color.White)
         Spacer(modifier = Modifier.height(8.dp))
         TextField(
             value = apiKey,
@@ -116,7 +117,7 @@ fun SettingsScreen() {
 
         // AI Model
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Enter the AI Model:", style = MaterialTheme.typography.bodyLarge)
+        Text("Enter the AI Model:", color = Color.White)
         Spacer(modifier = Modifier.height(8.dp))
         TextField(
             value = aiModel,
@@ -142,13 +143,13 @@ fun SettingsScreen() {
                 }
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Use your own voice recognition", style = MaterialTheme.typography.bodyLarge)
+            Text("Use your own voice recognition", color = Color.White)
         }
 
         // If own voice recognition checkbox is checked
         if (voiceRecognition) {
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Voice recognition API URL:", style = MaterialTheme.typography.bodyLarge)
+            Text("Voice recognition API URL:", color = Color.White)
             Spacer(modifier = Modifier.height(8.dp))
             TextField(
                 value = voiceRecognitionApiUrl,
@@ -161,7 +162,7 @@ fun SettingsScreen() {
             )
 
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Voice recognition API Key:", style = MaterialTheme.typography.bodyLarge)
+            Text("Voice recognition API Key:", color = Color.White)
             Spacer(modifier = Modifier.height(8.dp))
             TextField(
                 value = voiceRecognitionApiKey,
@@ -174,7 +175,7 @@ fun SettingsScreen() {
             )
 
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Voice Recognition Model:", style = MaterialTheme.typography.bodyLarge)
+            Text("Voice Recognition Model:", color = Color.White)
             Spacer(modifier = Modifier.height(8.dp))
             TextField(
                 value = voiceRecognitionModel,
@@ -189,7 +190,7 @@ fun SettingsScreen() {
         }
         // Wait timeout
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Enter the API wait timeout:", style = MaterialTheme.typography.bodyLarge)
+        Text("Enter the API wait timeout:", color = Color.White)
         Spacer(modifier = Modifier.height(8.dp))
         TextField(
             value = readTimeout,
