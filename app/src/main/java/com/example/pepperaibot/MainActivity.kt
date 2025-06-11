@@ -14,6 +14,8 @@ import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -137,7 +139,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 MainScreen(viewModel = viewModel) {
                     startActivity(Intent(this, SettingsActivity::class.java))
                 }
-              }
+            }
         }
 
         try {
@@ -520,6 +522,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun MainScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
+        val scrollState = rememberScrollState()
         var isListening = viewModel.isListening.value
         Scaffold(
             topBar = {
@@ -540,7 +543,11 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                     .padding(16.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(scrollState)
+                ) {
                     Text("Press the button to talk with Pepper.", style = MaterialTheme.typography.bodyLarge)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(viewModel.listeningText.value, color = Color.DarkGray)
@@ -563,7 +570,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                         },
                         containerColor = if (viewModel.isListening.value) Color(0xFFD32F2F) else Color(0xFF6200EE),
 
-                    ) {
+                        ) {
                         Icon(Icons.Filled.Mic, contentDescription = "Mic", tint = Color.White)
                     }
                 }
