@@ -552,9 +552,9 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(viewModel.listeningText.value, color = Color.DarkGray)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(viewModel.userInput.value, modifier = Modifier.fillMaxWidth().background(Color(0xFFE0F7FA)).padding(8.dp))
+                    Text(viewModel.userInput.value, modifier = Modifier.fillMaxWidth().background(Color(0xFF9A97A9)).padding(8.dp))
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(viewModel.aiResponse.value, modifier = Modifier.fillMaxWidth().background(Color(0xFFF1F8E9)).padding(8.dp))
+                    Text(viewModel.aiResponse.value, modifier = Modifier.fillMaxWidth().background(Color(0xFF8EAD8F)).padding(8.dp))
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     FloatingActionButton(
