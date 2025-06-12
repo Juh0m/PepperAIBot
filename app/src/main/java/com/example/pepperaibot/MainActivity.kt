@@ -25,13 +25,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.LifecycleOwner
 import com.aldebaran.qi.sdk.*
 import com.aldebaran.qi.sdk.builder.SayBuilder
 import com.aldebaran.qi.sdk.`object`.locale.Language
 import com.aldebaran.qi.sdk.`object`.locale.Locale
 import com.aldebaran.qi.sdk.`object`.locale.Region
-import com.example.pepperaibot.MainViewModel.RetrofitClient.aiModel
 import com.example.pepperaibot.ui.theme.PepperAIBotTheme
 import java.io.*
 import java.io.File
@@ -45,12 +43,10 @@ import okhttp3.ResponseBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.OkHttpClient
-import okhttp3.Callback
 import org.json.JSONObject
 import org.vosk.*
 import retrofit2.Retrofit
 import retrofit2.Call
-import retrofit2.Response
 import retrofit2.http.*
 import retrofit2.http.Headers
 import retrofit2.converter.gson.GsonConverterFactory
@@ -296,7 +292,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         }
     }
 
-    fun stopFileRecording() {
+    private fun stopFileRecording() {
         if (!isRecordingFile || mediaRecorder == null) return
 
         try {
@@ -419,17 +415,17 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         ): Call<ResponseBody>
     }
 
-    fun prepareFilePart(partName: String, file: File): MultipartBody.Part {
+    private fun prepareFilePart(partName: String, file: File): MultipartBody.Part {
         val mimeType = "audio/aac"
         val requestFile = file
             .asRequestBody(mimeType.toMediaTypeOrNull())
         return MultipartBody.Part.createFormData(partName, file.name, requestFile)
     }
 
-    fun createPartFromString(value: String): RequestBody =
+    private fun createPartFromString(value: String): RequestBody =
         RequestBody.create("text/plain".toMediaTypeOrNull(), value)
 
-    fun setupSTTClients()
+    private fun setupSTTClients()
     {
         okHttpClient = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -447,7 +443,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         service = retrofit.create(FileUploadService::class.java)
     }
 
-    fun getLocalSTTResponse()
+    private fun getLocalSTTResponse()
     {
         val file = File(outputFilePath)
         val filePart = prepareFilePart("audio", file)
@@ -523,7 +519,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     @Composable
     fun MainScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
         val scrollState = rememberScrollState()
-        var isListening = viewModel.isListening.value
+        val isListening = viewModel.isListening.value
         Scaffold(
             topBar = {
                 TopAppBar(
