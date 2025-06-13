@@ -60,6 +60,9 @@ fun SettingsScreen() {
     var aiModel by remember {
         mutableStateOf(sharedPreferences.getString("ai_model", "") ?: "")
     }
+    var readTimeout by remember {
+        mutableStateOf(sharedPreferences.getLong("api_read_timeout", 60).toString())
+    }
     var voiceRecognition by remember {
         mutableStateOf(sharedPreferences.getBoolean("voice_recognition", false))
     }
@@ -72,9 +75,10 @@ fun SettingsScreen() {
     var voiceRecognitionModel by remember {
         mutableStateOf(sharedPreferences.getString("voice_recognition_model", "") ?: "")
     }
-    var readTimeout by remember {
-        mutableStateOf(sharedPreferences.getLong("api_read_timeout", 30).toString())
+    var voiceRecognitionReadTimeout by remember {
+        mutableStateOf(sharedPreferences.getLong("voice_recognition_read_timeout", 60).toString())
     }
+
 
     val scrollState = rememberScrollState()
 
@@ -87,7 +91,7 @@ fun SettingsScreen() {
         verticalArrangement = Arrangement.Top
     ) {
         Text("Settings", color = Color.White)
-        Text("Changes to settings require restarting the app.", color = Color.White)
+        Text("Changes to voice recognition settings require restarting the app.", color = Color.White)
         Spacer(modifier = Modifier.height(16.dp))
 
         // API URL
@@ -129,6 +133,24 @@ fun SettingsScreen() {
             },
             label = { Text("AI Model") },
             modifier = Modifier.fillMaxWidth()
+        )
+
+        // Wait timeout for AI API
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Enter the AI API wait timeout:", color = Color.White)
+        Spacer(modifier = Modifier.height(8.dp))
+        TextField(
+            value = readTimeout,
+            onValueChange = {
+                if(it.isDigitsOnly()) {
+                    readTimeout = it
+                    val timeout = it.toLongOrNull() ?: 60L
+                    sharedPreferences.edit { putLong("api_read_timeout", timeout) }
+                }
+            },
+            label = { Text("API wait timeout (seconds)") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
 
         // voice_recognition Checkbox
@@ -189,24 +211,24 @@ fun SettingsScreen() {
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // Wait timeout for voice recognition API
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Enter the voice recognition API wait timeout:", color = Color.White)
+            Spacer(modifier = Modifier.height(8.dp))
+            TextField(
+                value = voiceRecognitionReadTimeout,
+                onValueChange = {
+                    if(it.isDigitsOnly()) {
+                        voiceRecognitionReadTimeout = it
+                        val timeout = it.toLongOrNull() ?: 60L
+                        sharedPreferences.edit { putLong("voice_recognition_read_timeout", timeout) }
+                    }
+                },
+                label = { Text("API wait timeout (seconds)") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
         }
-        // Wait timeout
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Enter the API wait timeout:", color = Color.White)
-        Spacer(modifier = Modifier.height(8.dp))
-        TextField(
-            value = readTimeout,
-            onValueChange = {
-                if(it.isDigitsOnly()) {
-                    readTimeout = it
-                    val timeout = it.toLongOrNull() ?: 30L
-                    sharedPreferences.edit { putLong("api_read_timeout", timeout) }
-                }
-            },
-            label = { Text("API wait timeout (seconds)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-        )
     }
 }
 

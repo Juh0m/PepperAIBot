@@ -301,7 +301,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 reset()
                 release()
             }
-            viewModel.updateListeningText("File recording stopped, waiting for speech-to-text conversion")
+
             getLocalSTTResponse()
 
         } catch (e: Exception) {
@@ -399,6 +399,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         val finish_reason: String
     )
 
+    // These should be moved somewhere else
     interface AIApi {
         @Headers("Content-Type: application/json")
         @POST("v1/chat/completions")
@@ -430,7 +431,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         okHttpClient = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(300, TimeUnit.SECONDS)
+            .readTimeout(sharedPrefs.getLong("voice_recognition_read_timeout", 60L), TimeUnit.SECONDS)
             .build()
 
         // Retrofit
@@ -448,7 +449,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         val file = File(outputFilePath)
         val filePart = prepareFilePart("audio", file)
         val description = createPartFromString("file desc")
-
+        viewModel.updateListeningText("Waiting for speech-to-text conversion")
         service.uploadFile(filePart, description)
             .enqueue(object : retrofit2.Callback<ResponseBody> {
                 override fun onResponse(call: Call<ResponseBody>, response: retrofit2.Response<ResponseBody>)
@@ -471,6 +472,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
 
                 override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                    viewModel.updateListeningText("Something went wrong with speech-to-text conversion: ${t.localizedMessage}")
                     Log.e("Upload", "Failed: ${t.localizedMessage}")
                 }
             })
