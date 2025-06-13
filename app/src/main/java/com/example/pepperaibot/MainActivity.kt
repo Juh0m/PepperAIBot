@@ -36,9 +36,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -463,11 +466,24 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
             .build()
 
         // Retrofit
-        retrofit = Retrofit.Builder()
-            .baseUrl(sharedPrefs.getString("voice_recognition_api_url", "http://u.rl/")?: "")
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
+        try {
+            retrofit = Retrofit.Builder()
+                .baseUrl(sharedPrefs.getString("voice_recognition_api_url", "http://u.rl/")?: "")
+                .client(okHttpClient)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+
+            service = retrofit.create(FileUploadService::class.java)
+        } catch (e : Exception) {
+            // Malformed URL causes a crash without this, don't have time for a better solution
+            retrofit = Retrofit.Builder()
+                .baseUrl("http://google.com/")
+                .client(okHttpClient)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+            Toast.makeText(this, "An error occured. Please check your voice recognition API url. It should look like this: http://example.com/", Toast.LENGTH_LONG).show()
+        }
+
 
         service = retrofit.create(FileUploadService::class.java)
     }
@@ -495,6 +511,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                         isTranscribing = false
 
                     } else {
+                        viewModel.updateListeningText("Something went wrong with speech-to-text conversion. ${response.code()}")
                         Log.e("Upload", "Server error: ${response.code()} ${response.errorBody()?.string()}")
                         isTranscribing = false
                     }
@@ -553,7 +570,11 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     fun MainScreen(viewModel: MainViewModel, onSettingsClick: () -> Unit) {
         val scrollState = rememberScrollState()
         val isListening = viewModel.isListening.value
+        val snackbarHostState = remember { SnackbarHostState() }
         Scaffold(
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState)
+            },
             topBar = {
                 TopAppBar(
                     title = { Text("Pepper Chat") },
@@ -589,6 +610,11 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                     FloatingActionButton(
                         onClick = {
                             val sharedPrefs = applicationContext.getSharedPreferences("app_settings", MODE_PRIVATE)
+                            if(isTranscribing) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Please wait until Pepper responds.")
+                                }
+                            }
                             if (!isListening && !isTranscribing) {
                                 viewModel.toggleListening()
                             }
