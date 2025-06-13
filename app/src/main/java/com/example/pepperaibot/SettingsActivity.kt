@@ -152,7 +152,8 @@ fun SettingsScreen() {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
 
-        // voice_recognition Checkbox
+        // External speech to text
+        // Does not work on Android 12+
         Spacer(modifier = Modifier.height(24.dp))
         Row(
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
