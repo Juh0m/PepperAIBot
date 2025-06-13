@@ -347,7 +347,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     }
 
     private fun processResult(result: String, isFinal: Boolean) {
-        Log.d(tag, "RESULT: $result")
+        Log.i(tag, "RESULT: $result")
         val jsonObject = JSONObject(result)
         val text = if (isFinal) jsonObject.optString("text", "") else jsonObject.optString("partial", "")
         if (text.isNotEmpty()) {
@@ -369,8 +369,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                         if (response.isSuccessful) {
                             val reply = response.body()?.choices?.firstOrNull()?.message?.content
                             conversation.add(Message("assistant", reply.toString()))
-                            Log.e(tag, "Full AI Reply: $reply")
-                            Log.e(tag, response.body().toString())
+                            Log.i(tag, "Full AI Reply: $reply")
 
                             if (reply != null) {
                                 viewModel.updateAIResponse(reply)
@@ -485,7 +484,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 {
                     if (response.isSuccessful) {
                         val responseText = response.body()?.string()
-                        Log.d("Upload", "Success! $responseText")
+                        Log.i("Upload", "Success! $responseText")
                         Log.d(tag, response.toString())
 
                         if (responseText != null) {
