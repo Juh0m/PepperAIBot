@@ -10,7 +10,6 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 
@@ -32,7 +31,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         private lateinit var api: AIApi
         private lateinit var authInterceptor: Interceptor
 
-        public lateinit var aiModel: String
+        lateinit var aiModel: String
 
         private var isInitialized = false
 
@@ -84,7 +83,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    public fun getRetrofitClient(): RetrofitClient {
+    fun getRetrofitClient(): RetrofitClient {
         return RetrofitClient
     }
 
