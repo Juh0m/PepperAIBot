@@ -1,8 +1,12 @@
 package com.example.pepperaibot
-import android.*
-import android.content.*
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.media.*
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
@@ -13,43 +17,71 @@ import androidx.activity.viewModels
 import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.aldebaran.qi.sdk.*
+import com.aldebaran.qi.sdk.QiContext
+import com.aldebaran.qi.sdk.QiSDK
+import com.aldebaran.qi.sdk.RobotLifecycleCallbacks
 import com.aldebaran.qi.sdk.builder.SayBuilder
 import com.aldebaran.qi.sdk.`object`.locale.Language
 import com.aldebaran.qi.sdk.`object`.locale.Locale
 import com.aldebaran.qi.sdk.`object`.locale.Region
 import com.example.pepperaibot.ui.theme.PepperAIBotTheme
-import java.io.*
-import java.io.File
-import java.nio.*
-import java.util.zip.ZipInputStream
-import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.*
-import okhttp3.MultipartBody
-import okhttp3.RequestBody
-import okhttp3.ResponseBody
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.ResponseBody
 import org.json.JSONObject
-import org.vosk.*
-import retrofit2.Retrofit
+import org.vosk.LibVosk
+import org.vosk.LogLevel
+import org.vosk.Model
+import org.vosk.Recognizer
 import retrofit2.Call
-import retrofit2.http.*
-import retrofit2.http.Headers
+import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.Headers
+import retrofit2.http.Multipart
+import retrofit2.http.POST
+import retrofit2.http.Part
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.util.concurrent.TimeUnit
+import java.util.zip.ZipInputStream
 
 class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
@@ -99,7 +131,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        sharedPrefs = applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+        sharedPrefs = applicationContext.getSharedPreferences("app_settings", MODE_PRIVATE)
         retrofitClient = viewModel.getRetrofitClient()
         retrofitClient.setup(applicationContext)
         setupSTTClients()
@@ -314,7 +346,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     }
 
     private fun processResult(result: String, isFinal: Boolean) {
-        Log.d(tag, "RESULT: ${result}")
+        Log.d(tag, "RESULT: $result")
         val jsonObject = JSONObject(result)
         val text = if (isFinal) jsonObject.optString("text", "") else jsonObject.optString("partial", "")
         if (text.isNotEmpty()) {
@@ -411,8 +443,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         @Multipart
         @POST("transcribe")
         fun uploadFile(
-            @Part filePart: MultipartBody.Part,
-            @Part("description") description: RequestBody
+            @Part filePart: MultipartBody.Part
         ): Call<ResponseBody>
     }
 
@@ -422,9 +453,6 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
             .asRequestBody(mimeType.toMediaTypeOrNull())
         return MultipartBody.Part.createFormData(partName, file.name, requestFile)
     }
-
-    private fun createPartFromString(value: String): RequestBody =
-        RequestBody.create("text/plain".toMediaTypeOrNull(), value)
 
     private fun setupSTTClients()
     {
@@ -448,15 +476,14 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     {
         val file = File(outputFilePath)
         val filePart = prepareFilePart("audio", file)
-        val description = createPartFromString("file desc")
         viewModel.updateListeningText("Waiting for speech-to-text conversion")
-        service.uploadFile(filePart, description)
+        service.uploadFile(filePart)
             .enqueue(object : retrofit2.Callback<ResponseBody> {
                 override fun onResponse(call: Call<ResponseBody>, response: retrofit2.Response<ResponseBody>)
                 {
                     if (response.isSuccessful) {
                         val responseText = response.body()?.string()
-                        Log.d("Upload", "Success! ${responseText}")
+                        Log.d("Upload", "Success! $responseText")
                         Log.d(tag, response.toString())
 
                         if (responseText != null) {
@@ -501,7 +528,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     private fun robotSay(text: String) {
         qiContext?.let { context ->
-            val locale: Locale = Locale(Language.ENGLISH, Region.UNITED_STATES);
+            val locale = Locale(Language.ENGLISH, Region.UNITED_STATES)
             CoroutineScope(Dispatchers.Default).launch {
                 try {
                     SayBuilder.with(context)
@@ -557,7 +584,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     FloatingActionButton(
                         onClick = {
-                            val sharedPrefs = applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+                            val sharedPrefs = applicationContext.getSharedPreferences("app_settings", MODE_PRIVATE)
                             if (!isListening) {
                                 viewModel.toggleListening()
                             }
