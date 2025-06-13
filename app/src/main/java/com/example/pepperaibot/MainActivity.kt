@@ -111,6 +111,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
     private var recordingJob: Job? = null
     private var isRecording = false
     private var isModelInitialized = false
+    private var isTranscribing = false
 
     private val conversation = mutableListOf<Message>()
 
@@ -474,6 +475,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
 
     private fun getLocalSTTResponse()
     {
+        isTranscribing = true
         val file = File(outputFilePath)
         val filePart = prepareFilePart("audio", file)
         viewModel.updateListeningText("Waiting for speech-to-text conversion")
@@ -491,9 +493,11 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                         } else {
                             viewModel.updateListeningText("Speech-to-text API returned no response or it was empty")
                         }
+                        isTranscribing = false
 
                     } else {
                         Log.e("Upload", "Server error: ${response.code()} ${response.errorBody()?.string()}")
+                        isTranscribing = false
                     }
                 }
 
@@ -501,6 +505,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                 override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
                     viewModel.updateListeningText("Something went wrong with speech-to-text conversion: ${t.localizedMessage}")
                     Log.e("Upload", "Failed: ${t.localizedMessage}")
+                    isTranscribing = false
                 }
             })
     }
@@ -585,11 +590,11 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
                     FloatingActionButton(
                         onClick = {
                             val sharedPrefs = applicationContext.getSharedPreferences("app_settings", MODE_PRIVATE)
-                            if (!isListening) {
+                            if (!isListening && !isTranscribing) {
                                 viewModel.toggleListening()
                             }
                             // Stopping mid-recording is OK for local voice recognition
-                            else if(sharedPrefs.getBoolean("voice_recognition", false)) {
+                            else if(sharedPrefs.getBoolean("voice_recognition", false) && !isTranscribing) {
                                 viewModel.toggleListening()
                             }
                         },
