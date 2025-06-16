@@ -156,43 +156,6 @@ fun SettingsScreen() {
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Wait timeout for AI API
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Enter the AI API wait timeout:", color = Color.White)
-        Spacer(modifier = Modifier.height(8.dp))
-        TextField(
-            value = readTimeout,
-            onValueChange = {
-                if(it.isDigitsOnly()) {
-                    readTimeout = it
-                    val timeout = it.toLongOrNull() ?: 60L
-                    sharedPreferences.edit { putLong("api_read_timeout", timeout) }
-                }
-            },
-            label = { Text("API wait timeout (seconds)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-        )
-
-
-        // External speech to text
-        // Does not work on Android 10+
-        Spacer(modifier = Modifier.height(24.dp))
-        Row(
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Checkbox(
-                checked = voiceRecognition,
-                onCheckedChange = {
-                    voiceRecognition = it
-                    sharedPreferences.edit { putBoolean("voice_recognition", it) }
-                }
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Use your own voice recognition", color = Color.White)
-        }
-
         // System Prompt
         Spacer(modifier = Modifier.height(16.dp))
         Text("Enter the System Prompt:", color = Color.White)
@@ -217,6 +180,42 @@ fun SettingsScreen() {
             }) {
                 Text("Reset Prompt")
             }
+        }
+
+        // Wait timeout for AI API
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Enter the AI API wait timeout:", color = Color.White)
+        Spacer(modifier = Modifier.height(8.dp))
+        TextField(
+            value = readTimeout,
+            onValueChange = {
+                if(it.isDigitsOnly()) {
+                    readTimeout = it
+                    val timeout = it.toLongOrNull() ?: 60L
+                    sharedPreferences.edit { putLong("api_read_timeout", timeout) }
+                }
+            },
+            label = { Text("API wait timeout (seconds)") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+        )
+
+        // External speech to text
+        // Does not work on Android 10+
+        Spacer(modifier = Modifier.height(24.dp))
+        Row(
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Checkbox(
+                checked = voiceRecognition,
+                onCheckedChange = {
+                    voiceRecognition = it
+                    sharedPreferences.edit { putBoolean("voice_recognition", it) }
+                }
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Use your own voice recognition", color = Color.White)
         }
 
         // If own voice recognition checkbox is checked
