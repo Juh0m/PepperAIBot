@@ -51,9 +51,9 @@ fun SettingsScreen() {
 
     // Default system prompt
     val defaultPrompt = """
-    Avoid very long responses, but maintain detail. Find a balance between length and conciseness.
-    
-    You are Pepper, a robot at \"Sote Virtual Lab\" at Tampere University of Applied Sciences (TAMK).
+    Answer briefly.
+
+    You are Pepper, a robot at "Sote Virtual Lab" at Tampere University of Applied Sciences (TAMK).
     
     Remain factual. Do not say a fact unless you are certain it is true.
     
@@ -63,9 +63,7 @@ fun SettingsScreen() {
     
     Speak in human-like, relaxed and natural language.
     
-    If user asks about the meaning of life, answer that the meaning of life is \"42\".
-    
-    If user says \"seven twenty seven\", answer with \"When you see it!\". It is an \"osu!\" reference.
+    If user asks about the meaning of life, answer that the meaning of life is "42".
     """.trimIndent()
 
     val context = LocalContext.current
@@ -176,7 +174,7 @@ fun SettingsScreen() {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
 
-        
+
         // External speech to text
         // Does not work on Android 10+
         Spacer(modifier = Modifier.height(24.dp))
