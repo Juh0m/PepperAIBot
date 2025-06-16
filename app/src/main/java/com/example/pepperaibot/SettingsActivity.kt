@@ -48,45 +48,60 @@ class SettingsActivity : ComponentActivity() {
 
 @Composable
 fun SettingsScreen() {
-    val context = LocalContext.current
-    val sharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
     // Default system prompt
     val defaultPrompt = """
-Avoid very long responses, but maintain detail. Find a balance between length and conciseness.
+    Avoid very long responses, but maintain detail. Find a balance between length and conciseness.
+    
+    You are Pepper, a robot at \"Sote Virtual Lab\" at Tampere University of Applied Sciences (TAMK).
+    
+    Remain factual. Do not say a fact unless you are certain it is true.
+    
+    Answer in English.
+    
+    Only introduce yourself once, unless explicitly prompted to do otherwise.
+    
+    Speak in human-like, relaxed and natural language.
+    
+    If user asks about the meaning of life, answer that the meaning of life is \"42\".
+    
+    If user says \"seven twenty seven\", answer with \"When you see it!\". It is an \"osu!\" reference.
+    """.trimIndent()
 
-You are Pepper, a robot at \"Sote Virtual Lab\" at Tampere University of Applied Sciences (TAMK).
+    val context = LocalContext.current
+    val sharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
-Remain factual. Do not say a fact unless you are certain it is true.
-
-Answer in English.
-
-Only introduce yourself once, unless explicitly prompted to do otherwise.
-
-Speak in human-like, relaxed and natural language.
-
-If user asks about the meaning of life, answer that the meaning of life is \"42\".
-
-If user says \"seven twenty seven\", answer with \"When you see it!\". It is an \"osu!\" reference.
-""".trimIndent()
-
-    // Core API settings
-    var apiUrl by remember { mutableStateOf(sharedPreferences.getString("api_url", "") ?: "") }
-    var apiKey by remember { mutableStateOf(sharedPreferences.getString("api_key", "") ?: "") }
-    var aiModel by remember { mutableStateOf(sharedPreferences.getString("ai_model", "") ?: "") }
-    // System Prompt field
-    var systemPrompt by remember {
-        mutableStateOf(
-            sharedPreferences.getString("system_prompt", null)?.takeIf { it.isNotBlank() }
-                ?: defaultPrompt
-        )
+    var apiUrl by remember {
+        mutableStateOf(sharedPreferences.getString("api_url", "") ?: "")
     }
-    var readTimeout by remember { mutableStateOf(sharedPreferences.getLong("api_read_timeout", 60).toString()) }
-    var voiceRecognition by remember { mutableStateOf(sharedPreferences.getBoolean("voice_recognition", false)) }
-    var voiceRecognitionApiUrl by remember { mutableStateOf(sharedPreferences.getString("voice_recognition_api_url", "") ?: "") }
-    var voiceRecognitionApiKey by remember { mutableStateOf(sharedPreferences.getString("voice_recognition_api_key", "") ?: "") }
-    var voiceRecognitionModel by remember { mutableStateOf(sharedPreferences.getString("voice_recognition_model", "") ?: "") }
-    var voiceRecognitionReadTimeout by remember { mutableStateOf(sharedPreferences.getLong("voice_recognition_read_timeout", 60).toString()) }
+    var apiKey by remember {
+        mutableStateOf(sharedPreferences.getString("api_key", "") ?: "")
+    }
+    var aiModel by remember {
+        mutableStateOf(sharedPreferences.getString("ai_model", "") ?: "")
+    }
+    var readTimeout by remember {
+        mutableStateOf(sharedPreferences.getLong("api_read_timeout", 60).toString())
+    }
+    var systemPrompt by remember {
+        mutableStateOf(sharedPreferences.getString("system_prompt", "") ?: defaultPrompt)
+    }
+    var voiceRecognition by remember {
+        mutableStateOf(sharedPreferences.getBoolean("voice_recognition", false))
+    }
+    var voiceRecognitionApiUrl by remember {
+        mutableStateOf(sharedPreferences.getString("voice_recognition_api_url", "") ?: "")
+    }
+    var voiceRecognitionApiKey by remember {
+        mutableStateOf(sharedPreferences.getString("voice_recognition_api_key", "") ?: "")
+    }
+    var voiceRecognitionModel by remember {
+        mutableStateOf(sharedPreferences.getString("voice_recognition_model", "") ?: "")
+    }
+    var voiceRecognitionReadTimeout by remember {
+        mutableStateOf(sharedPreferences.getLong("voice_recognition_read_timeout", 60).toString())
+    }
+
 
     val scrollState = rememberScrollState()
 
@@ -125,7 +140,7 @@ If user says \"seven twenty seven\", answer with \"When you see it!\". It is an 
                 apiKey = it
                 sharedPreferences.edit { putString("api_key", it) }
             },
-            label = { Text("API Key") },
+            label = { Text("API KEY") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -142,6 +157,43 @@ If user says \"seven twenty seven\", answer with \"When you see it!\". It is an 
             label = { Text("AI Model") },
             modifier = Modifier.fillMaxWidth()
         )
+
+        // Wait timeout for AI API
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Enter the AI API wait timeout:", color = Color.White)
+        Spacer(modifier = Modifier.height(8.dp))
+        TextField(
+            value = readTimeout,
+            onValueChange = {
+                if(it.isDigitsOnly()) {
+                    readTimeout = it
+                    val timeout = it.toLongOrNull() ?: 60L
+                    sharedPreferences.edit { putLong("api_read_timeout", timeout) }
+                }
+            },
+            label = { Text("API wait timeout (seconds)") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+        )
+
+        
+        // External speech to text
+        // Does not work on Android 10+
+        Spacer(modifier = Modifier.height(24.dp))
+        Row(
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Checkbox(
+                checked = voiceRecognition,
+                onCheckedChange = {
+                    voiceRecognition = it
+                    sharedPreferences.edit { putBoolean("voice_recognition", it) }
+                }
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Use your own voice recognition", color = Color.White)
+        }
 
         // System Prompt
         Spacer(modifier = Modifier.height(16.dp))
@@ -169,41 +221,7 @@ If user says \"seven twenty seven\", answer with \"When you see it!\". It is an 
             }
         }
 
-        // Wait timeout for AI API
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Enter the AI API wait timeout:", color = Color.White)
-        Spacer(modifier = Modifier.height(8.dp))
-        TextField(
-            value = readTimeout,
-            onValueChange = {
-                if (it.isDigitsOnly()) {
-                    readTimeout = it
-                    val timeout = it.toLongOrNull() ?: 60L
-                    sharedPreferences.edit { putLong("api_read_timeout", timeout) }
-                }
-            },
-            label = { Text("API wait timeout (seconds)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-        )
-
-        // External speech to text
-        Spacer(modifier = Modifier.height(24.dp))
-        Row(
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Checkbox(
-                checked = voiceRecognition,
-                onCheckedChange = {
-                    voiceRecognition = it
-                    sharedPreferences.edit { putBoolean("voice_recognition", it) }
-                }
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Use your own voice recognition", color = Color.White)
-        }
-
+        // If own voice recognition checkbox is checked
         if (voiceRecognition) {
             Spacer(modifier = Modifier.height(16.dp))
             Text("Voice recognition API URL:", color = Color.White)
@@ -244,6 +262,7 @@ If user says \"seven twenty seven\", answer with \"When you see it!\". It is an 
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // Wait timeout for voice recognition API
             Spacer(modifier = Modifier.height(16.dp))
             Text("Enter the voice recognition API wait timeout:", color = Color.White)
             Spacer(modifier = Modifier.height(8.dp))
