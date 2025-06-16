@@ -139,6 +139,9 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         retrofitClient = viewModel.getRetrofitClient()
         retrofitClient.setup(applicationContext)
         setupSTTClients()
+        if(conversation.isEmpty()) {
+            conversation.add(Message("system", sharedPrefs.getString("system_prompt", "") ?: ""))
+        }
         val localVoiceRecognition = sharedPrefs.getBoolean("voice_recognition", false)
         viewModel.onStartListening = {
             if (localVoiceRecognition && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
@@ -185,6 +188,7 @@ class MainActivity : AppCompatActivity(), RobotLifecycleCallbacks {
         super.onResume()
         retrofitClient = viewModel.getRetrofitClient()
         retrofitClient.setup(applicationContext)
+        conversation[0] = Message("system", sharedPrefs.getString("system_prompt", "") ?: "")
     }
 
     // Check microphone permissions
