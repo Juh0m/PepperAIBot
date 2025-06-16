@@ -74,7 +74,7 @@ If user says \"seven twenty seven\", answer with \"When you see it!\". It is an 
     var apiUrl by remember { mutableStateOf(sharedPreferences.getString("api_url", "") ?: "") }
     var apiKey by remember { mutableStateOf(sharedPreferences.getString("api_key", "") ?: "") }
     var aiModel by remember { mutableStateOf(sharedPreferences.getString("ai_model", "") ?: "") }
-    // System Prompt with default fallback
+    // System Prompt field
     var systemPrompt by remember {
         mutableStateOf(
             sharedPreferences.getString("system_prompt", null)?.takeIf { it.isNotBlank() }
@@ -160,7 +160,6 @@ If user says \"seven twenty seven\", answer with \"When you see it!\". It is an 
             keyboardOptions = KeyboardOptions.Default
         )
         Spacer(modifier = Modifier.height(8.dp))
-        // Reset to default button
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Button(onClick = {
                 systemPrompt = defaultPrompt
@@ -205,7 +204,6 @@ If user says \"seven twenty seven\", answer with \"When you see it!\". It is an 
             Text("Use your own voice recognition", color = Color.White)
         }
 
-        // If own voice recognition checkbox is checked
         if (voiceRecognition) {
             Spacer(modifier = Modifier.height(16.dp))
             Text("Voice recognition API URL:", color = Color.White)
@@ -246,7 +244,6 @@ If user says \"seven twenty seven\", answer with \"When you see it!\". It is an 
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Wait timeout for voice recognition API
             Spacer(modifier = Modifier.height(16.dp))
             Text("Enter the voice recognition API wait timeout:", color = Color.White)
             Spacer(modifier = Modifier.height(8.dp))
