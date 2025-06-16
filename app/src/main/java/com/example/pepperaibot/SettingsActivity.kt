@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -50,34 +51,42 @@ fun SettingsScreen() {
     val context = LocalContext.current
     val sharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
-    var apiUrl by remember {
-        mutableStateOf(sharedPreferences.getString("api_url", "") ?: "")
-    }
-    var apiKey by remember {
-        mutableStateOf(sharedPreferences.getString("api_key", "") ?: "")
-    }
-    var aiModel by remember {
-        mutableStateOf(sharedPreferences.getString("ai_model", "") ?: "")
-    }
-    var readTimeout by remember {
-        mutableStateOf(sharedPreferences.getLong("api_read_timeout", 60).toString())
-    }
-    var voiceRecognition by remember {
-        mutableStateOf(sharedPreferences.getBoolean("voice_recognition", false))
-    }
-    var voiceRecognitionApiUrl by remember {
-        mutableStateOf(sharedPreferences.getString("voice_recognition_api_url", "") ?: "")
-    }
-    var voiceRecognitionApiKey by remember {
-        mutableStateOf(sharedPreferences.getString("voice_recognition_api_key", "") ?: "")
-    }
-    var voiceRecognitionModel by remember {
-        mutableStateOf(sharedPreferences.getString("voice_recognition_model", "") ?: "")
-    }
-    var voiceRecognitionReadTimeout by remember {
-        mutableStateOf(sharedPreferences.getLong("voice_recognition_read_timeout", 60).toString())
-    }
+    // Default system prompt
+    val defaultPrompt = """
+Avoid very long responses, but maintain detail. Find a balance between length and conciseness.
 
+You are Pepper, a robot at \"Sote Virtual Lab\" at Tampere University of Applied Sciences (TAMK).
+
+Remain factual. Do not say a fact unless you are certain it is true.
+
+Answer in English.
+
+Only introduce yourself once, unless explicitly prompted to do otherwise.
+
+Speak in human-like, relaxed and natural language.
+
+If user asks about the meaning of life, answer that the meaning of life is \"42\".
+
+If user says \"seven twenty seven\", answer with \"When you see it!\". It is an \"osu!\" reference.
+""".trimIndent()
+
+    // Core API settings
+    var apiUrl by remember { mutableStateOf(sharedPreferences.getString("api_url", "") ?: "") }
+    var apiKey by remember { mutableStateOf(sharedPreferences.getString("api_key", "") ?: "") }
+    var aiModel by remember { mutableStateOf(sharedPreferences.getString("ai_model", "") ?: "") }
+    // System Prompt with default fallback
+    var systemPrompt by remember {
+        mutableStateOf(
+            sharedPreferences.getString("system_prompt", null)?.takeIf { it.isNotBlank() }
+                ?: defaultPrompt
+        )
+    }
+    var readTimeout by remember { mutableStateOf(sharedPreferences.getLong("api_read_timeout", 60).toString()) }
+    var voiceRecognition by remember { mutableStateOf(sharedPreferences.getBoolean("voice_recognition", false)) }
+    var voiceRecognitionApiUrl by remember { mutableStateOf(sharedPreferences.getString("voice_recognition_api_url", "") ?: "") }
+    var voiceRecognitionApiKey by remember { mutableStateOf(sharedPreferences.getString("voice_recognition_api_key", "") ?: "") }
+    var voiceRecognitionModel by remember { mutableStateOf(sharedPreferences.getString("voice_recognition_model", "") ?: "") }
+    var voiceRecognitionReadTimeout by remember { mutableStateOf(sharedPreferences.getLong("voice_recognition_read_timeout", 60).toString()) }
 
     val scrollState = rememberScrollState()
 
@@ -116,7 +125,7 @@ fun SettingsScreen() {
                 apiKey = it
                 sharedPreferences.edit { putString("api_key", it) }
             },
-            label = { Text("API KEY") },
+            label = { Text("API Key") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -134,6 +143,33 @@ fun SettingsScreen() {
             modifier = Modifier.fillMaxWidth()
         )
 
+        // System Prompt
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Enter the System Prompt:", color = Color.White)
+        Spacer(modifier = Modifier.height(8.dp))
+        TextField(
+            value = systemPrompt,
+            onValueChange = {
+                systemPrompt = it
+                sharedPreferences.edit { putString("system_prompt", it) }
+            },
+            label = { Text("System Prompt") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(150.dp),
+            keyboardOptions = KeyboardOptions.Default
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        // Reset to default button
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Button(onClick = {
+                systemPrompt = defaultPrompt
+                sharedPreferences.edit { putString("system_prompt", defaultPrompt) }
+            }) {
+                Text("Reset Prompt")
+            }
+        }
+
         // Wait timeout for AI API
         Spacer(modifier = Modifier.height(16.dp))
         Text("Enter the AI API wait timeout:", color = Color.White)
@@ -141,7 +177,7 @@ fun SettingsScreen() {
         TextField(
             value = readTimeout,
             onValueChange = {
-                if(it.isDigitsOnly()) {
+                if (it.isDigitsOnly()) {
                     readTimeout = it
                     val timeout = it.toLongOrNull() ?: 60L
                     sharedPreferences.edit { putLong("api_read_timeout", timeout) }
@@ -153,7 +189,6 @@ fun SettingsScreen() {
         )
 
         // External speech to text
-        // Does not work on Android 12+
         Spacer(modifier = Modifier.height(24.dp))
         Row(
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
@@ -218,7 +253,7 @@ fun SettingsScreen() {
             TextField(
                 value = voiceRecognitionReadTimeout,
                 onValueChange = {
-                    if(it.isDigitsOnly()) {
+                    if (it.isDigitsOnly()) {
                         voiceRecognitionReadTimeout = it
                         val timeout = it.toLongOrNull() ?: 60L
                         sharedPreferences.edit { putLong("voice_recognition_read_timeout", timeout) }
@@ -231,4 +266,3 @@ fun SettingsScreen() {
         }
     }
 }
-
