@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -47,6 +48,24 @@ class SettingsActivity : ComponentActivity() {
 
 @Composable
 fun SettingsScreen() {
+
+    // Default system prompt
+    val defaultPrompt = """
+    Answer briefly.
+
+    You are Pepper, a robot at "Sote Virtual Lab" at Tampere University of Applied Sciences (TAMK).
+    
+    Remain factual. Do not say a fact unless you are certain it is true.
+    
+    Answer in English.
+    
+    Only introduce yourself once, unless explicitly prompted to do otherwise.
+    
+    Speak in human-like, relaxed and natural language.
+    
+    If user asks about the meaning of life, answer that the meaning of life is "42".
+    """.trimIndent()
+
     val context = LocalContext.current
     val sharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
@@ -61,6 +80,9 @@ fun SettingsScreen() {
     }
     var readTimeout by remember {
         mutableStateOf(sharedPreferences.getLong("api_read_timeout", 60).toString())
+    }
+    var systemPrompt by remember {
+        mutableStateOf(sharedPreferences.getString("system_prompt", "") ?: defaultPrompt)
     }
     var voiceRecognition by remember {
         mutableStateOf(sharedPreferences.getBoolean("voice_recognition", false))
@@ -152,8 +174,9 @@ fun SettingsScreen() {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
 
+
         // External speech to text
-        // Does not work on Android 12+
+        // Does not work on Android 10+
         Spacer(modifier = Modifier.height(24.dp))
         Row(
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
@@ -168,6 +191,32 @@ fun SettingsScreen() {
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text("Use your own voice recognition", color = Color.White)
+        }
+
+        // System Prompt
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Enter the System Prompt:", color = Color.White)
+        Spacer(modifier = Modifier.height(8.dp))
+        TextField(
+            value = systemPrompt,
+            onValueChange = {
+                systemPrompt = it
+                sharedPreferences.edit { putString("system_prompt", it) }
+            },
+            label = { Text("System Prompt") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(150.dp),
+            keyboardOptions = KeyboardOptions.Default
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Button(onClick = {
+                systemPrompt = defaultPrompt
+                sharedPreferences.edit { putString("system_prompt", defaultPrompt) }
+            }) {
+                Text("Reset Prompt")
+            }
         }
 
         // If own voice recognition checkbox is checked
@@ -218,7 +267,7 @@ fun SettingsScreen() {
             TextField(
                 value = voiceRecognitionReadTimeout,
                 onValueChange = {
-                    if(it.isDigitsOnly()) {
+                    if (it.isDigitsOnly()) {
                         voiceRecognitionReadTimeout = it
                         val timeout = it.toLongOrNull() ?: 60L
                         sharedPreferences.edit { putLong("voice_recognition_read_timeout", timeout) }
@@ -231,4 +280,3 @@ fun SettingsScreen() {
         }
     }
 }
-
